@@ -35,8 +35,8 @@ function calculateRatingChange(ratingA, ratingB, scoreA, scoreB) {
       changeA = rules.adjustment.strongerLoss.strong;
       changeB = rules.adjustment.strongerLoss.weak;
     } else {
-      changeA += rules.adjustment.strongerDraw.strong;
-      changeB += rules.adjustment.strongerDraw.weak;
+      changeA += 0;
+      changeB += rule.draw;
     }
   } else if (ratingB > ratingA) {
     // B stronger
@@ -47,8 +47,8 @@ function calculateRatingChange(ratingA, ratingB, scoreA, scoreB) {
       changeB = rules.adjustment.strongerLoss.strong;
       changeA = rules.adjustment.strongerLoss.weak;
     } else {
-      changeB += rules.adjustment.strongerDraw.strong;
-      changeA += rules.adjustment.strongerDraw.weak;
+      changeB += 0;
+      changeA += rule.draw;
     }
   }
 
