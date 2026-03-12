@@ -1,55 +1,49 @@
 {
-  "category": "Heavyweight",
+  "category": "Middleweight",
   "mode": "rapid",
-  "generatedAt": "2026-02-17T08:45:03.423Z",
-  "month": "February",
+  "generatedAt": "2026-03-11T23:16:29.368Z",
+  "month": "March",
   "year": "2026",
   "table": [
     {
-      "username": "emmagency",
-      "totalRounds": 7,
-      "totalPoints": 11,
-      "accuracy": "64.9%"
-    },
-    {
-      "username": "pamboy27",
-      "totalRounds": 7,
-      "totalPoints": 11,
-      "accuracy": "64.9%"
-    },
-    {
-      "username": "don-pedro_t",
-      "totalRounds": 7,
-      "totalPoints": 8,
-      "accuracy": "47.2%"
-    },
-    {
-      "username": "bornstarchessman",
-      "totalRounds": 7,
-      "totalPoints": 8,
-      "accuracy": "47.2%"
-    },
-    {
-      "username": "mad_prince01",
-      "totalRounds": 7,
-      "totalPoints": 7,
-      "accuracy": "41.3%"
-    },
-    {
       "username": "Jax_man",
-      "totalRounds": 7,
-      "totalPoints": 6,
-      "accuracy": "35.4%"
+      "totalRounds": 1,
+      "totalPoints": 2,
+      "accuracy": "94.8%"
+    },
+    {
+      "username": "professor-praise",
+      "totalRounds": 1,
+      "totalPoints": 2,
+      "accuracy": "89.9%"
     },
     {
       "username": "onengs1",
-      "totalRounds": 7,
-      "totalPoints": 3,
-      "accuracy": "17.7%"
+      "totalRounds": 1,
+      "totalPoints": 1,
+      "accuracy": "47.3%"
     },
     {
-      "username": "richie_prime",
-      "totalRounds": 7,
+      "username": "fergifork",
+      "totalRounds": 1,
+      "totalPoints": 1,
+      "accuracy": "42.6%"
+    },
+    {
+      "username": "the-olympus",
+      "totalRounds": 0,
+      "totalPoints": 0,
+      "accuracy": "0%"
+    },
+    {
+      "username": "veecent",
+      "totalRounds": 1,
+      "totalPoints": 0,
+      "accuracy": "0.0%"
+    },
+    {
+      "username": "Emark911",
+      "totalRounds": 1,
       "totalPoints": 0,
       "accuracy": "0.0%"
     }

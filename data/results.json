@@ -2,37 +2,37 @@
   {
     "round": "1",
     "mode": "rapid",
-    "playerA": "emmagency",
-    "playerB": "pamboy27",
-    "scoreA": 1,
+    "playerA": "professor-praise",
+    "playerB": "Emark911",
+    "scoreA": 2,
     "scoreB": 0,
     "changeA": 1,
     "changeB": -2,
-    "date": "2026-02-17T15:18:10.261Z",
-    "category": "cagematch: heavyweightchampionship"
+    "date": "2026-03-11T19:15:45.061Z",
+    "category": "middleweight"
   },
   {
-    "round": "2",
+    "round": "1",
     "mode": "rapid",
-    "playerA": "emmagency",
-    "playerB": "pamboy27",
-    "scoreA": 0,
+    "playerA": "onengs1",
+    "playerB": "fergifork",
+    "scoreA": 1,
     "scoreB": 1,
-    "changeA": -3,
-    "changeB": 3,
-    "date": "2026-02-17T15:37:54.747Z",
-    "category": "cagematch: heavyweightchampionship"
+    "changeA": 2,
+    "changeB": 4,
+    "date": "2026-03-11T20:28:42.253Z",
+    "category": "middleweight"
   },
   {
-    "round": "3",
+    "round": "1",
     "mode": "rapid",
-    "playerA": "emmagency",
-    "playerB": "pamboy27",
-    "scoreA": 1,
-    "scoreB": 0,
-    "changeA": 1,
-    "changeB": -2,
-    "date": "2026-02-17T16:07:44.705Z",
-    "category": "cagematch: heavyweightchampionship"
+    "playerA": "veecent",
+    "playerB": "Jax_man",
+    "scoreA": 0,
+    "scoreB": 2,
+    "changeA": -2,
+    "changeB": 1,
+    "date": "2026-03-11T23:16:02.641Z",
+    "category": "middleweight"
   }
 ]
