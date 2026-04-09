@@ -4,17 +4,17 @@
     "fullName": "Emmanuel Akomas",
     "username": "emmagency",
     "category": "heavyweight",
-    "bio": "Reigning Heavyweight Champion And Streamer. 6x Champion Who  Defeated @pamboy27 In The 2026 February Cage Match Edition.\n\nHe knocked out @funnyfunnymoves, @veecent, and @bornstarchessman on his road to the top, earning his place in the finals against @pamboy at the February 2026 Bullet Championship.",
+    "bio": "Reigning Heavyweight Champion And Streamer. 7x Champion Who  Defeated @pamboy27 In The 2026 February Cage Match Edition.\n\nHe knocked out @funnyfunnymoves, @veecent, and @bornstarchessman on his road to the top, earning his place in the finals against @pamboy at the February 2026 Bullet Championship.",
     "ratings": {
-      "rapid": 1904,
+      "rapid": 1910,
       "blitz": 1897,
       "bullet": 1922
     },
     "createdAt": "2026-01-11T13:20:42.349Z",
     "recentGain": 0,
-    "lastGainDate": "2026-02-27T15:02:19.378Z",
-    "points": 0,
-    "totalRounds": 0
+    "lastGainDate": "2026-04-02T17:48:15.174Z",
+    "points": 8.5,
+    "totalRounds": 5
   },
   "richie_prime": {
     "id": 1768229846140,
@@ -37,7 +37,7 @@
     "id": 1768230178556,
     "fullName": "Pamela Souter Ezeh",
     "username": "pamboy27",
-    "category": "heavyweight",
+    "category": "unavailable",
     "bio": "Current Team Coach. AKA Mella_zero. \nHe stands as the first ever Undisputed and Reigning Bullet Champion of the team. In the February 2026 Finals, he overcame @Emmagency in a thrilling showdown to claim the crown.\nHe now proudly holds the highest Bullet rating in the team, setting the standard for everyone else to chase.",
     "ratings": {
       "rapid": 1903,
@@ -74,13 +74,13 @@
     "category": "middleweight",
     "bio": "Uses The Hungarian Opening",
     "ratings": {
-      "rapid": 1799,
+      "rapid": 1797,
       "blitz": 1804,
       "bullet": 1775
     },
     "createdAt": "2026-01-12T15:10:27.328Z",
     "recentGain": 0,
-    "lastGainDate": "2026-02-27T15:02:19.378Z",
+    "lastGainDate": "2026-03-19T22:05:13.370Z",
     "points": 0,
     "totalRounds": 0
   },
@@ -88,7 +88,7 @@
     "id": 1768230771343,
     "fullName": "Don Pedro Tamunotonye",
     "username": "don-pedro_t",
-    "category": "heavyweight",
+    "category": "unavailable",
     "bio": "Really Good In Closed Positions.",
     "ratings": {
       "rapid": 1901,
@@ -108,15 +108,15 @@
     "category": "heavyweight",
     "bio": "AKA Thelastwarlock. Former Team Captain.",
     "ratings": {
-      "rapid": 1798,
+      "rapid": 1782,
       "blitz": 1788,
       "bullet": 1760
     },
     "createdAt": "2026-01-12T15:15:04.221Z",
     "recentGain": 0,
-    "lastGainDate": "2026-02-24T21:09:17.454Z",
+    "lastGainDate": "2026-04-02T17:48:15.174Z",
     "points": 0,
-    "totalRounds": 0
+    "totalRounds": 5
   },
   "gboy4life": {
     "id": 1768230991789,
@@ -125,32 +125,32 @@
     "category": "heavyweight",
     "bio": "The First Team Captain.",
     "ratings": {
-      "rapid": 1803,
+      "rapid": 1804,
       "blitz": 1800,
       "bullet": 1800
     },
     "createdAt": "2026-01-12T15:16:31.789Z",
     "recentGain": 0,
-    "lastGainDate": "2026-02-06T03:51:32.223Z",
-    "points": 0,
-    "totalRounds": 0
+    "lastGainDate": "2026-04-02T17:48:15.174Z",
+    "points": 4,
+    "totalRounds": 5
   },
   "professor-praise": {
     "id": 1768231165991,
     "fullName": "Praise Iyaye",
     "username": "professor-praise",
     "category": "middleweight",
-    "bio": "AKA GM Iyaye.",
+    "bio": "AKA GM Iyaye. Current Middleweight Champion",
     "ratings": {
-      "rapid": 1798,
+      "rapid": 1804,
       "blitz": 1812,
       "bullet": 1904
     },
     "createdAt": "2026-01-12T15:19:25.991Z",
-    "recentGain": 1,
-    "lastGainDate": "2026-03-11T19:15:45.061Z",
-    "points": 2,
-    "totalRounds": 1
+    "recentGain": 0,
+    "lastGainDate": "2026-03-19T22:05:13.370Z",
+    "points": 0,
+    "totalRounds": 0
   },
   "stalemate_veto": {
     "id": 1768231356847,
@@ -174,17 +174,17 @@
     "fullName": "Raphael Boma Sam",
     "username": "mr9iceguy",
     "category": "heavyweight",
-    "bio": "Mostly Plays The London Attack.. He's Currently The Middleweight Champion.",
+    "bio": "Mostly Plays The London Attack.. 2x Former Middleweight Champion.",
     "ratings": {
-      "rapid": 1811,
+      "rapid": 1816,
       "blitz": 1800,
       "bullet": 1804
     },
     "createdAt": "2026-01-12T15:24:11.147Z",
     "recentGain": 0,
-    "lastGainDate": "2026-02-23T21:12:35.579Z",
-    "points": 0,
-    "totalRounds": 0
+    "lastGainDate": "2026-04-02T17:48:15.174Z",
+    "points": 7,
+    "totalRounds": 5
   },
   "oluwachris": {
     "id": 1768231562699,
@@ -227,15 +227,15 @@
     "category": "middleweight",
     "bio": "A Chess Player.",
     "ratings": {
-      "rapid": 1798,
+      "rapid": 1772,
       "blitz": 1800,
       "bullet": 1859
     },
     "createdAt": "2026-01-12T15:30:06.305Z",
-    "recentGain": -2,
-    "lastGainDate": "2026-03-11T23:16:02.641Z",
+    "recentGain": 0,
+    "lastGainDate": "2026-03-19T22:05:13.370Z",
     "points": 0,
-    "totalRounds": 1
+    "totalRounds": 0
   },
   "raychester": {
     "id": 1768231874755,
@@ -278,15 +278,15 @@
     "category": "heavyweight",
     "bio": "Excels In Closed Positions.",
     "ratings": {
-      "rapid": 1902,
+      "rapid": 1900,
       "blitz": 1900,
       "bullet": 1907
     },
     "createdAt": "2026-01-12T15:35:28.746Z",
     "recentGain": 0,
-    "lastGainDate": "2026-02-27T15:02:19.378Z",
-    "points": 0,
-    "totalRounds": 0
+    "lastGainDate": "2026-04-02T17:48:15.174Z",
+    "points": 5,
+    "totalRounds": 5
   },
   "wosuszn": {
     "id": 1768232207432,
@@ -397,22 +397,22 @@
     "category": "middleweight",
     "bio": "AKA Jack The Souless.",
     "ratings": {
-      "rapid": 1891,
+      "rapid": 1892,
       "blitz": 1888,
       "bullet": 1822
     },
     "createdAt": "2026-01-12T15:47:20.834Z",
-    "recentGain": 2,
-    "lastGainDate": "2026-03-11T20:28:42.253Z",
-    "points": 1,
-    "totalRounds": 1
+    "recentGain": 0,
+    "lastGainDate": "2026-03-19T22:05:13.370Z",
+    "points": 0,
+    "totalRounds": 0
   },
   "aminigo01": {
     "id": 1768234218834,
     "fullName": "Emmanuel Aminigo",
     "username": "aminigo01",
     "category": "lightweight",
-    "bio": "Current Lightweight Chsmpion.",
+    "bio": "Current Lightweight Champion.",
     "ratings": {
       "rapid": 1789,
       "blitz": 1800,
@@ -448,15 +448,15 @@
     "category": "middleweight",
     "bio": "1x Former Lightweight Champion.",
     "ratings": {
-      "rapid": 1706,
+      "rapid": 1713,
       "blitz": 1712,
       "bullet": 1693
     },
     "createdAt": "2026-01-12T17:56:06.679Z",
-    "recentGain": 4,
-    "lastGainDate": "2026-03-11T20:28:42.253Z",
-    "points": 1,
-    "totalRounds": 1
+    "recentGain": 0,
+    "lastGainDate": "2026-03-19T22:05:13.370Z",
+    "points": 0,
+    "totalRounds": 0
   },
   "franklin_eke": {
     "id": 1768248432967,
@@ -480,17 +480,17 @@
     "fullName": "Amakiri Perfect",
     "username": "mad_prince01",
     "category": "heavyweight",
-    "bio": "Mostly Opens With C4.",
+    "bio": "Mostly Opens With C4.\nHe’s a 1x Lightweight Champion and a rising prospect who moved up to the heavyweight division.\n\nIn the March heavyweight event, he secured a top-three finish, proving his doubters wrong and showing he can handle the pressure.",
     "ratings": {
-      "rapid": 1898,
+      "rapid": 1897,
       "blitz": 1900,
       "bullet": 1862
     },
     "createdAt": "2026-01-13T05:38:07.952Z",
     "recentGain": 0,
-    "lastGainDate": "2026-02-23T21:12:35.579Z",
-    "points": 0,
-    "totalRounds": 0
+    "lastGainDate": "2026-04-02T17:48:15.174Z",
+    "points": 5.5,
+    "totalRounds": 5
   },
   "lozy_kingston": {
     "id": 1768326815451,
@@ -567,15 +567,15 @@
     "category": "middleweight",
     "bio": "The Developer. Always Uses The Queens Gambit.",
     "ratings": {
-      "rapid": 1896,
+      "rapid": 1893,
       "blitz": 1900,
       "bullet": 1876
     },
     "createdAt": "2026-01-11T00:25:32.878Z",
-    "recentGain": 1,
-    "lastGainDate": "2026-03-11T23:16:02.641Z",
-    "points": 2,
-    "totalRounds": 1
+    "recentGain": 0,
+    "lastGainDate": "2026-03-19T22:05:13.370Z",
+    "points": 0,
+    "totalRounds": 0
   },
   "bomaski8sav3": {
     "id": 1768252145330,
@@ -635,15 +635,15 @@
     "category": "middleweight",
     "bio": "A Chess Player.",
     "ratings": {
-      "rapid": 1796,
+      "rapid": 1809,
       "blitz": 1800,
       "bullet": 1800
     },
     "createdAt": "2026-01-27T11:34:56.989Z",
-    "recentGain": -2,
-    "lastGainDate": "2026-03-11T19:15:45.061Z",
+    "recentGain": 0,
+    "lastGainDate": "2026-03-19T22:05:13.370Z",
     "points": 0,
-    "totalRounds": 1
+    "totalRounds": 0
   },
   "deehors_21": {
     "id": 1772357907671,
@@ -674,6 +674,23 @@
       "bullet": 1700
     },
     "createdAt": "2026-03-03T16:25:45.340Z",
+    "recentGain": 0,
+    "lastGainDate": null,
+    "points": 0,
+    "totalRounds": 0
+  },
+  "fredzugs": {
+    "id": 1775130943160,
+    "fullName": "Segebari Nwizug",
+    "username": "fredzugs",
+    "category": "lightweight",
+    "bio": "A Chess Player.",
+    "ratings": {
+      "rapid": 1700,
+      "blitz": 1700,
+      "bullet": 1700
+    },
+    "createdAt": "2026-04-02T11:55:43.160Z",
     "recentGain": 0,
     "lastGainDate": null,
     "points": 0,

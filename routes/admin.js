@@ -488,10 +488,6 @@ const lossMultB = getLossMultiplier(lossStreakB);
 // 🔹 base rating change
 let { changeA, changeB } = calculateRatingChange(ratingA, ratingB, scoreA, scoreB);
 
- if (scoreA === 0 && scoreB === 0) {
-      changeA = 0;
-      changeB = 0;
-    }
 
 // 🔹 Apply only to gains (not losses)
 if (changeA > 0) {

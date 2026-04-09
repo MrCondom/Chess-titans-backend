@@ -1,136 +1,100 @@
 {
-  "middleweight": {
+  "heavyweight": {
     "rounds": [
       {
         "round": 1,
         "pairings": [
           {
-            "white": "professor-praise",
-            "black": "Emark911"
+            "white": "emmagency",
+            "black": "mad_prince01"
           },
           {
-            "white": "veecent",
-            "black": "Jax_man"
+            "white": "warlock24",
+            "black": "bornstarchessman"
           },
           {
-            "white": "onengs1",
-            "black": "fergifork"
+            "white": "gboy4life",
+            "black": "mr9iceguy"
           }
         ],
-        "availableAt": "2026-03-10T22:59:51.753Z"
+        "availableAt": "2026-03-25T22:36:22.414Z"
       },
       {
         "round": 2,
         "pairings": [
           {
-            "white": "the-olympus",
-            "black": "Emark911"
+            "white": "emmagency",
+            "black": "bornstarchessman"
           },
           {
-            "white": "professor-praise",
-            "black": "fergifork"
+            "white": "mad_prince01",
+            "black": "mr9iceguy"
           },
           {
-            "white": "veecent",
-            "black": "onengs1"
+            "white": "warlock24",
+            "black": "gboy4life"
           }
         ],
-        "availableAt": "2026-03-11T22:59:51.753Z"
+        "availableAt": "2026-03-26T22:36:22.414Z"
       },
       {
         "round": 3,
         "pairings": [
           {
-            "white": "the-olympus",
-            "black": "Jax_man"
+            "white": "emmagency",
+            "black": "mr9iceguy"
           },
           {
-            "white": "Emark911",
-            "black": "fergifork"
+            "white": "bornstarchessman",
+            "black": "gboy4life"
           },
           {
-            "white": "professor-praise",
-            "black": "veecent"
+            "white": "mad_prince01",
+            "black": "warlock24"
           }
         ],
-        "availableAt": "2026-03-12T22:59:51.753Z"
+        "availableAt": "2026-03-27T22:36:22.414Z"
       },
       {
         "round": 4,
         "pairings": [
           {
-            "white": "the-olympus",
-            "black": "fergifork"
+            "white": "emmagency",
+            "black": "gboy4life"
           },
           {
-            "white": "Jax_man",
-            "black": "onengs1"
+            "white": "mr9iceguy",
+            "black": "warlock24"
           },
           {
-            "white": "Emark911",
-            "black": "veecent"
+            "white": "bornstarchessman",
+            "black": "mad_prince01"
           }
         ],
-        "availableAt": "2026-03-13T22:59:51.753Z"
+        "availableAt": "2026-03-28T22:36:22.414Z"
       },
       {
         "round": 5,
         "pairings": [
           {
-            "white": "the-olympus",
-            "black": "onengs1"
+            "white": "emmagency",
+            "black": "warlock24"
           },
           {
-            "white": "fergifork",
-            "black": "veecent"
+            "white": "gboy4life",
+            "black": "mad_prince01"
           },
           {
-            "white": "Jax_man",
-            "black": "professor-praise"
+            "white": "mr9iceguy",
+            "black": "bornstarchessman"
           }
         ],
-        "availableAt": "2026-03-14T22:59:51.753Z"
-      },
-      {
-        "round": 6,
-        "pairings": [
-          {
-            "white": "the-olympus",
-            "black": "veecent"
-          },
-          {
-            "white": "onengs1",
-            "black": "professor-praise"
-          },
-          {
-            "white": "Jax_man",
-            "black": "Emark911"
-          }
-        ],
-        "availableAt": "2026-03-15T22:59:51.753Z"
-      },
-      {
-        "round": 7,
-        "pairings": [
-          {
-            "white": "the-olympus",
-            "black": "professor-praise"
-          },
-          {
-            "white": "onengs1",
-            "black": "Emark911"
-          },
-          {
-            "white": "fergifork",
-            "black": "Jax_man"
-          }
-        ],
-        "availableAt": "2026-03-16T22:59:51.753Z"
+        "availableAt": "2026-03-29T22:36:22.414Z"
       }
     ],
-    "currentRound": 2,
+    "currentRound": 3,
     "intervalHours": 24,
-    "nextRoundAt": "2026-03-11T22:59:52.156Z",
+    "nextRoundAt": "2026-04-02T11:14:05.322Z",
     "countdown": 86400,
     "completed": false
   }
