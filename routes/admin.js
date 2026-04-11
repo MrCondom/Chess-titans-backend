@@ -905,13 +905,13 @@ router.get("/players/all", async (req, res) => {
 // ✅ 9. Leaderboard Table
 router.post("/generateTable", async (req, res) => {
   const { category, mode, month, year } = req.body;
+
   if (!category || !mode) {
     return res.status(400).json({ error: "Category and mode are required" });
   }
 
   const players = await readJSON("players.json");
 
-  // Filter players by category
   const filteredPlayers = Object.values(players).filter(
     (p) => p.category.toLowerCase() === category.toLowerCase()
   );
@@ -920,7 +920,6 @@ router.post("/generateTable", async (req, res) => {
     return res.status(404).json({ error: `No players found in ${category}` });
   }
 
-  // Generate leaderboard table
   const table = filteredPlayers.map((p) => {
     const totalPoints = p.points || 0;
     const totalRounds = p.totalRounds || 0;
@@ -932,11 +931,10 @@ router.post("/generateTable", async (req, res) => {
       totalRounds,
       totalPoints,
       accuracy: accuracyValue,
-      numericAccuracy, // for sorting
+      numericAccuracy,
     };
   });
 
-  // ✅ Sort by totalPoints DESC, then accuracy DESC
   table.sort((a, b) => {
     if (b.totalPoints === a.totalPoints) {
       return b.numericAccuracy - a.numericAccuracy;
@@ -944,44 +942,77 @@ router.post("/generateTable", async (req, res) => {
     return b.totalPoints - a.totalPoints;
   });
 
-  // Save clean table
-  await writeJSON("table.json", {
+  const newTable = {
+    id: `${month || "all"}-${year || "all"}-${category}-${mode}`.toLowerCase(),
     category,
     mode,
-    generatedAt: new Date(),
     month: month || null,
     year: year || null,
+    generatedAt: new Date(),
     table: table.map(({ numericAccuracy, ...rest }) => rest),
-  });
+  };
 
-  res.json({ message: "Table generated successfully", table });
+  // 🔥 Read existing tables
+  let existing = { tables: [] };
+  try {
+    const fileData = await readJSON("tables.json");
+
+    if (fileData && Array.isArray(fileData.tables)) {
+        existing = fileData;
+    }
+
+  } catch (err) {
+    existing = {tables: []};
+  }
+
+  // 🔥 Replace if already exists (same id)
+  const index = existing.tables.findIndex(t => t.id === newTable.id);
+  if (index !== -1) {
+    existing.tables[index] = newTable;
+  } else {
+    existing.tables.push(newTable);
+  }
+
+  await writeJSON("tables.json", existing);
+
+  res.json({ message: "Table saved", table: newTable });
 });
+
 
 router.get("/table", async (req, res) => {
   try {
-    const data = await readJSON("table.json");
-    res.json(data);
+    const data = await readJSON("tables.json");
+    const tables = (data?.tables || []).sort(
+      (a, b) =>
+        new Date(b.generatedAt) - new Date(a.generatedAt)
+    );
+    res.json({tables});
   } catch (err) {
-    res.status(404).json({ error: "No table found. Generate one first." });
+    res.json({tables: [] });
   }
 });
 
-router.delete("/deleteTable", async (req, res) => {
+
+router.delete("/deleteTable/:id", async (req, res) => {
+  const { id } = req.params;
+
   try {
-    const fs = require("fs");
-    const filePath = path.join(__dirname, "../data/table.json");
+    let data = await readJSON("tables.json");
 
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-      return res.json({ message: "Table deleted successfully" });
-    } else {
-      return res.status(404).json({ error: "No table file found" });
+    const newTables = data.tables.filter(t => t.id !== id);
+
+    if (newTables.length === data.tables.length) {
+      return res.status(404).json({ error: "Table not found" });
     }
+
+    await writeJSON("tables.json", { tables: newTables });
+
+    res.json({ message: "Table deleted" });
   } catch (err) {
-    console.error("deleteTable error:", err);
-    res.status(500).json({ error: "Failed to delete table" });
+    res.status(500).json({ error: "Delete failed" });
   }
 });
+
 
 // ✅ 10. Edit player details
 router.post("/edit-player", async (req, res) => {
