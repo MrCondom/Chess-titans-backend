@@ -1,3 +1,4 @@
+const express = require("express")
 const prisma = require("../lib/prisma");
 const router = express.Router();
 
@@ -6,8 +7,6 @@ const {
 } = require("../utils/ratingCalculator");
 
 const {
-  getWinStreak,
-  getLossStreak,
   getWinMultiplier,
   getLossMultiplier,
 } = require("../utils/streak");

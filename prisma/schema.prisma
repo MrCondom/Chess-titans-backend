@@ -199,7 +199,7 @@ model PlayerRanking {
 
   rank Int
 
-  totalPoints Int @default(0)
+  totalPoints Float @default(0)
   totalRounds Int @default(0)
 
   accuracy Float @default(0)
