@@ -1,0 +1,334 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+
+enum PlayerStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum GameMode {
+  RAPID
+  BLITZ
+  BULLET
+}
+
+enum AdminStatus {
+  ACTIVE
+  INACTIVE
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| PLAYER
+|--------------------------------------------------------------------------
+*/
+
+model Player {
+  id       Int    @id @default(autoincrement())
+  fullName String
+  username String @unique
+
+  rapidRating  Int @default(0)
+  blitzRating  Int @default(0)
+  bulletRating Int @default(0)
+
+  rapidGain  Int @default(0)
+  blitzGain  Int @default(0)
+  bulletGain Int @default(0)
+
+  status   PlayerStatus @default(ACTIVE)
+  category String       @default("unavailable")
+
+  bio String @default("")
+
+  totalPoints Int @default(0)
+  totalRounds Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // TEAM
+  teamId Int?
+  team   Team? @relation(fields: [teamId], references: [id], onDelete: SetNull)
+
+  // PAIRINGS
+  whitePairings Pairing[] @relation("WhitePlayer")
+  blackPairings Pairing[] @relation("BlackPlayer")
+
+  // RESULTS
+  whiteResults GameResult[] @relation("WhitePlayerResults")
+  blackResults GameResult[] @relation("BlackPlayerResults")
+
+  // RANKINGS
+  rankings PlayerRanking[]
+  ratingGains RatingGain[]
+
+  @@index([category])
+  @@index([status])
+  @@index([teamId])
+}
+
+
+model Team {
+  id          Int    @id @default(autoincrement())
+  name        String @unique
+  description String @default("")
+
+  totalPoints Int @default(0)
+
+  rapidGain  Int @default(0)
+  blitzGain  Int @default(0)
+  bulletGain Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // PLAYERS
+  players Player[]
+
+  // TEAM PAIRINGS
+  teamPairingsAsTeamA TeamPairing[] @relation("TeamA")
+  teamPairingsAsTeamB TeamPairing[] @relation("TeamB")
+
+  // RANKINGS
+  rankings TeamRanking[]
+
+  @@index([name])
+}
+
+
+model Pairing {
+  id Int @id @default(autoincrement())
+
+  category String
+  round    Int
+  mode     GameMode
+
+  ratingGains RatingGain[]
+  whitePlayerId Int
+  blackPlayerId Int
+
+  whitePlayer Player @relation("WhitePlayer", fields: [whitePlayerId], references: [id], onDelete: Cascade)
+  blackPlayer Player @relation("BlackPlayer", fields: [blackPlayerId], references: [id], onDelete: Cascade)
+
+  availableAt DateTime
+
+  createdAt DateTime @default(now())
+
+  // RESULT
+  result GameResult?
+
+  @@unique([category, round, whitePlayerId, blackPlayerId])
+  @@index([category])
+  @@index([round])
+  @@index([availableAt])
+}
+
+
+model TeamPairing {
+  id Int @id @default(autoincrement())
+
+  round Int
+
+  teamAId Int
+  teamBId Int
+
+  teamA Team @relation("TeamA", fields: [teamAId], references: [id], onDelete: Cascade)
+  teamB Team @relation("TeamB", fields: [teamBId], references: [id], onDelete: Cascade)
+
+  availableAt DateTime
+
+  createdAt DateTime @default(now())
+
+  @@unique([round, teamAId, teamBId])
+  @@index([round])
+  @@index([availableAt])
+}
+
+
+model GameResult {
+  id Int @id @default(autoincrement())
+
+  round Int
+  mode  GameMode
+
+  whitePlayerId Int
+  blackPlayerId Int
+
+  whitePlayer Player @relation("WhitePlayerResults", fields: [whitePlayerId], references: [id], onDelete: Cascade)
+  blackPlayer Player @relation("BlackPlayerResults", fields: [blackPlayerId], references: [id], onDelete: Cascade)
+
+  whiteScore Float
+  blackScore Float
+
+  whiteRatingChange Int @default(0)
+  blackRatingChange Int @default(0)
+
+  category String
+
+  date DateTime @default(now())
+
+  // PAIRING
+  pairingId Int? @unique
+  pairing   Pairing? @relation(fields: [pairingId], references: [id], onDelete: SetNull)
+
+  @@index([round])
+  @@index([mode])
+  @@index([category])
+  @@index([date])
+}
+
+
+model PlayerRanking {
+  id Int @id @default(autoincrement())
+
+  playerId Int
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  category String
+  mode     GameMode
+
+  rank Int
+
+  totalPoints Int @default(0)
+  totalRounds Int @default(0)
+
+  accuracy Float @default(0)
+
+  month Int?
+  year  Int?
+
+  createdAt DateTime @default(now())
+
+  @@index([category])
+  @@index([mode])
+  @@index([rank])
+  @@index([year, month])
+}
+
+
+model TeamRanking {
+  id Int @id @default(autoincrement())
+
+  teamId Int
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  category String?
+  mode     GameMode?
+
+  rank Int
+
+  totalPoints Int @default(0)
+  ratingGain  Int @default(0)
+
+  month Int?
+  year  Int?
+
+  createdAt DateTime @default(now())
+
+  @@index([rank])
+  @@index([category])
+  @@index([mode])
+  @@index([year, month])
+}
+
+model RatingGain {
+  id          Int       @id @default(autoincrement())
+
+  playerId    Int
+  player      Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  pairingId   Int?
+  pairing      Pairing?    @relation(fields: [pairingId], references: [id], onDelete: SetNull)
+
+  mode        GameMode
+
+  amount      Int
+
+  reason      String?
+
+  createdAt   DateTime  @default(now())
+
+  @@index([playerId])
+  @@index([pairingId])
+  @@index([mode])
+  @@index([createdAt])
+}
+
+
+model Admin {
+  id Int @id @default(autoincrement())
+
+  username     String @unique
+  passwordHash String
+
+  ipAddress String?
+
+  status AdminStatus @default(ACTIVE)
+
+  lastLoginAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  loginLogs AdminLoginLog[]
+
+  @@index([ipAddress])
+}
+
+
+model AdminLoginLog {
+  id Int @id @default(autoincrement())
+
+  adminId Int
+
+  admin Admin @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  ipAddress String
+
+  successful Boolean @default(false)
+
+  loginAt DateTime @default(now())
+
+  @@index([adminId])
+  @@index([ipAddress])
+  @@index([loginAt])
+}
+
+
+model BlockedIP {
+  id Int @id @default(autoincrement())
+
+  ipAddress String @unique
+
+  isBlocked Boolean @default(true)
+
+  blockedAt DateTime @default(now())
+  unblockedAt DateTime?
+
+  @@index([isBlocked])
+}
+
+
+model Announcement {
+  id Int @id @default(autoincrement())
+
+  message String
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+}
