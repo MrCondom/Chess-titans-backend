@@ -153,6 +153,16 @@ export type EnumGameModeFilter<$PrismaModel = never> = {
   not?: Prisma.NestedEnumGameModeFilter<$PrismaModel> | $Enums.GameMode
 }
 
+export type EnumGameModeWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.GameMode | Prisma.EnumGameModeFieldRefInput<$PrismaModel>
+  in?: $Enums.GameMode[]
+  notIn?: $Enums.GameMode[]
+  not?: Prisma.NestedEnumGameModeWithAggregatesFilter<$PrismaModel> | $Enums.GameMode
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumGameModeFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumGameModeFilter<$PrismaModel>
+}
+
 export type FloatFilter<$PrismaModel = never> = {
   equals?: number | Prisma.FloatFieldRefInput<$PrismaModel>
   in?: number[]
@@ -162,16 +172,6 @@ export type FloatFilter<$PrismaModel = never> = {
   gt?: number | Prisma.FloatFieldRefInput<$PrismaModel>
   gte?: number | Prisma.FloatFieldRefInput<$PrismaModel>
   not?: Prisma.NestedFloatFilter<$PrismaModel> | number
-}
-
-export type EnumGameModeWithAggregatesFilter<$PrismaModel = never> = {
-  equals?: $Enums.GameMode | Prisma.EnumGameModeFieldRefInput<$PrismaModel>
-  in?: $Enums.GameMode[]
-  notIn?: $Enums.GameMode[]
-  not?: Prisma.NestedEnumGameModeWithAggregatesFilter<$PrismaModel> | $Enums.GameMode
-  _count?: Prisma.NestedIntFilter<$PrismaModel>
-  _min?: Prisma.NestedEnumGameModeFilter<$PrismaModel>
-  _max?: Prisma.NestedEnumGameModeFilter<$PrismaModel>
 }
 
 export type FloatWithAggregatesFilter<$PrismaModel = never> = {

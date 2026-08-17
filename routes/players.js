@@ -10,7 +10,7 @@ function normalizeUsername(username) {
 
 function normalizeCategory(category) {
   const value = String(category || "").trim().toLowerCase();
-  return value || "unavailable";
+  return value;
 }
 
 
@@ -69,19 +69,13 @@ router.get("/all", async (req, res) => {
     Object.keys(grouped)
       .filter(
         (category) =>
-          !categoryOrder.includes(category) &&
-          category !== "unavailable"
-      )
+          !categoryOrder.includes(category))
       .sort()
       .forEach((category) => {
         orderedGrouped[category] = grouped[category];
       });
 
     
-
-    if (grouped.unavailable) {
-      orderedGrouped.unavailable = grouped.unavailable;
-    }
 
     res.json(orderedGrouped);
   } catch (error) {

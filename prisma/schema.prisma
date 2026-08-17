@@ -45,7 +45,7 @@ model Player {
   bulletGain Int @default(0)
 
   status   PlayerStatus @default(ACTIVE)
-  category String       @default("unavailable")
+  category String       @default("")
 
   bio String @default("")
 
@@ -126,7 +126,7 @@ model Pairing {
   // RESULT
   result GameResult?
 
-  @@unique([category, round, whitePlayerId, blackPlayerId])
+  @@unique([category, round, mode, whitePlayerId, blackPlayerId])
   @@index([category])
   @@index([round])
   @@index([availableAt])

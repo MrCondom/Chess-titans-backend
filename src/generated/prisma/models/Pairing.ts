@@ -44,6 +44,7 @@ export type PairingMinAggregateOutputType = {
   id: number | null
   category: string | null
   round: number | null
+  mode: $Enums.GameMode | null
   whitePlayerId: number | null
   blackPlayerId: number | null
   availableAt: Date | null
@@ -54,6 +55,7 @@ export type PairingMaxAggregateOutputType = {
   id: number | null
   category: string | null
   round: number | null
+  mode: $Enums.GameMode | null
   whitePlayerId: number | null
   blackPlayerId: number | null
   availableAt: Date | null
@@ -64,6 +66,7 @@ export type PairingCountAggregateOutputType = {
   id: number
   category: number
   round: number
+  mode: number
   whitePlayerId: number
   blackPlayerId: number
   availableAt: number
@@ -90,6 +93,7 @@ export type PairingMinAggregateInputType = {
   id?: true
   category?: true
   round?: true
+  mode?: true
   whitePlayerId?: true
   blackPlayerId?: true
   availableAt?: true
@@ -100,6 +104,7 @@ export type PairingMaxAggregateInputType = {
   id?: true
   category?: true
   round?: true
+  mode?: true
   whitePlayerId?: true
   blackPlayerId?: true
   availableAt?: true
@@ -110,6 +115,7 @@ export type PairingCountAggregateInputType = {
   id?: true
   category?: true
   round?: true
+  mode?: true
   whitePlayerId?: true
   blackPlayerId?: true
   availableAt?: true
@@ -207,6 +213,7 @@ export type PairingGroupByOutputType = {
   id: number
   category: string
   round: number
+  mode: $Enums.GameMode
   whitePlayerId: number
   blackPlayerId: number
   availableAt: Date
@@ -240,10 +247,12 @@ export type PairingWhereInput = {
   id?: Prisma.IntFilter<"Pairing"> | number
   category?: Prisma.StringFilter<"Pairing"> | string
   round?: Prisma.IntFilter<"Pairing"> | number
+  mode?: Prisma.EnumGameModeFilter<"Pairing"> | $Enums.GameMode
   whitePlayerId?: Prisma.IntFilter<"Pairing"> | number
   blackPlayerId?: Prisma.IntFilter<"Pairing"> | number
   availableAt?: Prisma.DateTimeFilter<"Pairing"> | Date | string
   createdAt?: Prisma.DateTimeFilter<"Pairing"> | Date | string
+  ratingGains?: Prisma.RatingGainListRelationFilter
   whitePlayer?: Prisma.XOR<Prisma.PlayerScalarRelationFilter, Prisma.PlayerWhereInput>
   blackPlayer?: Prisma.XOR<Prisma.PlayerScalarRelationFilter, Prisma.PlayerWhereInput>
   result?: Prisma.XOR<Prisma.GameResultNullableScalarRelationFilter, Prisma.GameResultWhereInput> | null
@@ -253,10 +262,12 @@ export type PairingOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   category?: Prisma.SortOrder
   round?: Prisma.SortOrder
+  mode?: Prisma.SortOrder
   whitePlayerId?: Prisma.SortOrder
   blackPlayerId?: Prisma.SortOrder
   availableAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  ratingGains?: Prisma.RatingGainOrderByRelationAggregateInput
   whitePlayer?: Prisma.PlayerOrderByWithRelationInput
   blackPlayer?: Prisma.PlayerOrderByWithRelationInput
   result?: Prisma.GameResultOrderByWithRelationInput
@@ -264,25 +275,28 @@ export type PairingOrderByWithRelationInput = {
 
 export type PairingWhereUniqueInput = Prisma.AtLeast<{
   id?: number
-  category_round_whitePlayerId_blackPlayerId?: Prisma.PairingCategoryRoundWhitePlayerIdBlackPlayerIdCompoundUniqueInput
+  category_round_mode_whitePlayerId_blackPlayerId?: Prisma.PairingCategoryRoundModeWhitePlayerIdBlackPlayerIdCompoundUniqueInput
   AND?: Prisma.PairingWhereInput | Prisma.PairingWhereInput[]
   OR?: Prisma.PairingWhereInput[]
   NOT?: Prisma.PairingWhereInput | Prisma.PairingWhereInput[]
   category?: Prisma.StringFilter<"Pairing"> | string
   round?: Prisma.IntFilter<"Pairing"> | number
+  mode?: Prisma.EnumGameModeFilter<"Pairing"> | $Enums.GameMode
   whitePlayerId?: Prisma.IntFilter<"Pairing"> | number
   blackPlayerId?: Prisma.IntFilter<"Pairing"> | number
   availableAt?: Prisma.DateTimeFilter<"Pairing"> | Date | string
   createdAt?: Prisma.DateTimeFilter<"Pairing"> | Date | string
+  ratingGains?: Prisma.RatingGainListRelationFilter
   whitePlayer?: Prisma.XOR<Prisma.PlayerScalarRelationFilter, Prisma.PlayerWhereInput>
   blackPlayer?: Prisma.XOR<Prisma.PlayerScalarRelationFilter, Prisma.PlayerWhereInput>
   result?: Prisma.XOR<Prisma.GameResultNullableScalarRelationFilter, Prisma.GameResultWhereInput> | null
-}, "id" | "category_round_whitePlayerId_blackPlayerId">
+}, "id" | "category_round_mode_whitePlayerId_blackPlayerId">
 
 export type PairingOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   category?: Prisma.SortOrder
   round?: Prisma.SortOrder
+  mode?: Prisma.SortOrder
   whitePlayerId?: Prisma.SortOrder
   blackPlayerId?: Prisma.SortOrder
   availableAt?: Prisma.SortOrder
@@ -301,6 +315,7 @@ export type PairingScalarWhereWithAggregatesInput = {
   id?: Prisma.IntWithAggregatesFilter<"Pairing"> | number
   category?: Prisma.StringWithAggregatesFilter<"Pairing"> | string
   round?: Prisma.IntWithAggregatesFilter<"Pairing"> | number
+  mode?: Prisma.EnumGameModeWithAggregatesFilter<"Pairing"> | $Enums.GameMode
   whitePlayerId?: Prisma.IntWithAggregatesFilter<"Pairing"> | number
   blackPlayerId?: Prisma.IntWithAggregatesFilter<"Pairing"> | number
   availableAt?: Prisma.DateTimeWithAggregatesFilter<"Pairing"> | Date | string
@@ -310,8 +325,10 @@ export type PairingScalarWhereWithAggregatesInput = {
 export type PairingCreateInput = {
   category: string
   round: number
+  mode: $Enums.GameMode
   availableAt: Date | string
   createdAt?: Date | string
+  ratingGains?: Prisma.RatingGainCreateNestedManyWithoutPairingInput
   whitePlayer: Prisma.PlayerCreateNestedOneWithoutWhitePairingsInput
   blackPlayer: Prisma.PlayerCreateNestedOneWithoutBlackPairingsInput
   result?: Prisma.GameResultCreateNestedOneWithoutPairingInput
@@ -321,18 +338,22 @@ export type PairingUncheckedCreateInput = {
   id?: number
   category: string
   round: number
+  mode: $Enums.GameMode
   whitePlayerId: number
   blackPlayerId: number
   availableAt: Date | string
   createdAt?: Date | string
+  ratingGains?: Prisma.RatingGainUncheckedCreateNestedManyWithoutPairingInput
   result?: Prisma.GameResultUncheckedCreateNestedOneWithoutPairingInput
 }
 
 export type PairingUpdateInput = {
   category?: Prisma.StringFieldUpdateOperationsInput | string
   round?: Prisma.IntFieldUpdateOperationsInput | number
+  mode?: Prisma.EnumGameModeFieldUpdateOperationsInput | $Enums.GameMode
   availableAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  ratingGains?: Prisma.RatingGainUpdateManyWithoutPairingNestedInput
   whitePlayer?: Prisma.PlayerUpdateOneRequiredWithoutWhitePairingsNestedInput
   blackPlayer?: Prisma.PlayerUpdateOneRequiredWithoutBlackPairingsNestedInput
   result?: Prisma.GameResultUpdateOneWithoutPairingNestedInput
@@ -342,10 +363,12 @@ export type PairingUncheckedUpdateInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   category?: Prisma.StringFieldUpdateOperationsInput | string
   round?: Prisma.IntFieldUpdateOperationsInput | number
+  mode?: Prisma.EnumGameModeFieldUpdateOperationsInput | $Enums.GameMode
   whitePlayerId?: Prisma.IntFieldUpdateOperationsInput | number
   blackPlayerId?: Prisma.IntFieldUpdateOperationsInput | number
   availableAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  ratingGains?: Prisma.RatingGainUncheckedUpdateManyWithoutPairingNestedInput
   result?: Prisma.GameResultUncheckedUpdateOneWithoutPairingNestedInput
 }
 
@@ -353,6 +376,7 @@ export type PairingCreateManyInput = {
   id?: number
   category: string
   round: number
+  mode: $Enums.GameMode
   whitePlayerId: number
   blackPlayerId: number
   availableAt: Date | string
@@ -362,6 +386,7 @@ export type PairingCreateManyInput = {
 export type PairingUpdateManyMutationInput = {
   category?: Prisma.StringFieldUpdateOperationsInput | string
   round?: Prisma.IntFieldUpdateOperationsInput | number
+  mode?: Prisma.EnumGameModeFieldUpdateOperationsInput | $Enums.GameMode
   availableAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -370,6 +395,7 @@ export type PairingUncheckedUpdateManyInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   category?: Prisma.StringFieldUpdateOperationsInput | string
   round?: Prisma.IntFieldUpdateOperationsInput | number
+  mode?: Prisma.EnumGameModeFieldUpdateOperationsInput | $Enums.GameMode
   whitePlayerId?: Prisma.IntFieldUpdateOperationsInput | number
   blackPlayerId?: Prisma.IntFieldUpdateOperationsInput | number
   availableAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -386,9 +412,10 @@ export type PairingOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
 }
 
-export type PairingCategoryRoundWhitePlayerIdBlackPlayerIdCompoundUniqueInput = {
+export type PairingCategoryRoundModeWhitePlayerIdBlackPlayerIdCompoundUniqueInput = {
   category: string
   round: number
+  mode: $Enums.GameMode
   whitePlayerId: number
   blackPlayerId: number
 }
@@ -397,6 +424,7 @@ export type PairingCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   category?: Prisma.SortOrder
   round?: Prisma.SortOrder
+  mode?: Prisma.SortOrder
   whitePlayerId?: Prisma.SortOrder
   blackPlayerId?: Prisma.SortOrder
   availableAt?: Prisma.SortOrder
@@ -414,6 +442,7 @@ export type PairingMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   category?: Prisma.SortOrder
   round?: Prisma.SortOrder
+  mode?: Prisma.SortOrder
   whitePlayerId?: Prisma.SortOrder
   blackPlayerId?: Prisma.SortOrder
   availableAt?: Prisma.SortOrder
@@ -424,6 +453,7 @@ export type PairingMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   category?: Prisma.SortOrder
   round?: Prisma.SortOrder
+  mode?: Prisma.SortOrder
   whitePlayerId?: Prisma.SortOrder
   blackPlayerId?: Prisma.SortOrder
   availableAt?: Prisma.SortOrder
@@ -526,6 +556,10 @@ export type PairingUncheckedUpdateManyWithoutBlackPlayerNestedInput = {
   deleteMany?: Prisma.PairingScalarWhereInput | Prisma.PairingScalarWhereInput[]
 }
 
+export type EnumGameModeFieldUpdateOperationsInput = {
+  set?: $Enums.GameMode
+}
+
 export type PairingCreateNestedOneWithoutResultInput = {
   create?: Prisma.XOR<Prisma.PairingCreateWithoutResultInput, Prisma.PairingUncheckedCreateWithoutResultInput>
   connectOrCreate?: Prisma.PairingCreateOrConnectWithoutResultInput
@@ -542,11 +576,29 @@ export type PairingUpdateOneWithoutResultNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.PairingUpdateToOneWithWhereWithoutResultInput, Prisma.PairingUpdateWithoutResultInput>, Prisma.PairingUncheckedUpdateWithoutResultInput>
 }
 
+export type PairingCreateNestedOneWithoutRatingGainsInput = {
+  create?: Prisma.XOR<Prisma.PairingCreateWithoutRatingGainsInput, Prisma.PairingUncheckedCreateWithoutRatingGainsInput>
+  connectOrCreate?: Prisma.PairingCreateOrConnectWithoutRatingGainsInput
+  connect?: Prisma.PairingWhereUniqueInput
+}
+
+export type PairingUpdateOneWithoutRatingGainsNestedInput = {
+  create?: Prisma.XOR<Prisma.PairingCreateWithoutRatingGainsInput, Prisma.PairingUncheckedCreateWithoutRatingGainsInput>
+  connectOrCreate?: Prisma.PairingCreateOrConnectWithoutRatingGainsInput
+  upsert?: Prisma.PairingUpsertWithoutRatingGainsInput
+  disconnect?: Prisma.PairingWhereInput | boolean
+  delete?: Prisma.PairingWhereInput | boolean
+  connect?: Prisma.PairingWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.PairingUpdateToOneWithWhereWithoutRatingGainsInput, Prisma.PairingUpdateWithoutRatingGainsInput>, Prisma.PairingUncheckedUpdateWithoutRatingGainsInput>
+}
+
 export type PairingCreateWithoutWhitePlayerInput = {
   category: string
   round: number
+  mode: $Enums.GameMode
   availableAt: Date | string
   createdAt?: Date | string
+  ratingGains?: Prisma.RatingGainCreateNestedManyWithoutPairingInput
   blackPlayer: Prisma.PlayerCreateNestedOneWithoutBlackPairingsInput
   result?: Prisma.GameResultCreateNestedOneWithoutPairingInput
 }
@@ -555,9 +607,11 @@ export type PairingUncheckedCreateWithoutWhitePlayerInput = {
   id?: number
   category: string
   round: number
+  mode: $Enums.GameMode
   blackPlayerId: number
   availableAt: Date | string
   createdAt?: Date | string
+  ratingGains?: Prisma.RatingGainUncheckedCreateNestedManyWithoutPairingInput
   result?: Prisma.GameResultUncheckedCreateNestedOneWithoutPairingInput
 }
 
@@ -573,8 +627,10 @@ export type PairingCreateManyWhitePlayerInputEnvelope = {
 export type PairingCreateWithoutBlackPlayerInput = {
   category: string
   round: number
+  mode: $Enums.GameMode
   availableAt: Date | string
   createdAt?: Date | string
+  ratingGains?: Prisma.RatingGainCreateNestedManyWithoutPairingInput
   whitePlayer: Prisma.PlayerCreateNestedOneWithoutWhitePairingsInput
   result?: Prisma.GameResultCreateNestedOneWithoutPairingInput
 }
@@ -583,9 +639,11 @@ export type PairingUncheckedCreateWithoutBlackPlayerInput = {
   id?: number
   category: string
   round: number
+  mode: $Enums.GameMode
   whitePlayerId: number
   availableAt: Date | string
   createdAt?: Date | string
+  ratingGains?: Prisma.RatingGainUncheckedCreateNestedManyWithoutPairingInput
   result?: Prisma.GameResultUncheckedCreateNestedOneWithoutPairingInput
 }
 
@@ -621,6 +679,7 @@ export type PairingScalarWhereInput = {
   id?: Prisma.IntFilter<"Pairing"> | number
   category?: Prisma.StringFilter<"Pairing"> | string
   round?: Prisma.IntFilter<"Pairing"> | number
+  mode?: Prisma.EnumGameModeFilter<"Pairing"> | $Enums.GameMode
   whitePlayerId?: Prisma.IntFilter<"Pairing"> | number
   blackPlayerId?: Prisma.IntFilter<"Pairing"> | number
   availableAt?: Prisma.DateTimeFilter<"Pairing"> | Date | string
@@ -646,8 +705,10 @@ export type PairingUpdateManyWithWhereWithoutBlackPlayerInput = {
 export type PairingCreateWithoutResultInput = {
   category: string
   round: number
+  mode: $Enums.GameMode
   availableAt: Date | string
   createdAt?: Date | string
+  ratingGains?: Prisma.RatingGainCreateNestedManyWithoutPairingInput
   whitePlayer: Prisma.PlayerCreateNestedOneWithoutWhitePairingsInput
   blackPlayer: Prisma.PlayerCreateNestedOneWithoutBlackPairingsInput
 }
@@ -656,10 +717,12 @@ export type PairingUncheckedCreateWithoutResultInput = {
   id?: number
   category: string
   round: number
+  mode: $Enums.GameMode
   whitePlayerId: number
   blackPlayerId: number
   availableAt: Date | string
   createdAt?: Date | string
+  ratingGains?: Prisma.RatingGainUncheckedCreateNestedManyWithoutPairingInput
 }
 
 export type PairingCreateOrConnectWithoutResultInput = {
@@ -681,8 +744,10 @@ export type PairingUpdateToOneWithWhereWithoutResultInput = {
 export type PairingUpdateWithoutResultInput = {
   category?: Prisma.StringFieldUpdateOperationsInput | string
   round?: Prisma.IntFieldUpdateOperationsInput | number
+  mode?: Prisma.EnumGameModeFieldUpdateOperationsInput | $Enums.GameMode
   availableAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  ratingGains?: Prisma.RatingGainUpdateManyWithoutPairingNestedInput
   whitePlayer?: Prisma.PlayerUpdateOneRequiredWithoutWhitePairingsNestedInput
   blackPlayer?: Prisma.PlayerUpdateOneRequiredWithoutBlackPairingsNestedInput
 }
@@ -691,16 +756,81 @@ export type PairingUncheckedUpdateWithoutResultInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   category?: Prisma.StringFieldUpdateOperationsInput | string
   round?: Prisma.IntFieldUpdateOperationsInput | number
+  mode?: Prisma.EnumGameModeFieldUpdateOperationsInput | $Enums.GameMode
   whitePlayerId?: Prisma.IntFieldUpdateOperationsInput | number
   blackPlayerId?: Prisma.IntFieldUpdateOperationsInput | number
   availableAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  ratingGains?: Prisma.RatingGainUncheckedUpdateManyWithoutPairingNestedInput
+}
+
+export type PairingCreateWithoutRatingGainsInput = {
+  category: string
+  round: number
+  mode: $Enums.GameMode
+  availableAt: Date | string
+  createdAt?: Date | string
+  whitePlayer: Prisma.PlayerCreateNestedOneWithoutWhitePairingsInput
+  blackPlayer: Prisma.PlayerCreateNestedOneWithoutBlackPairingsInput
+  result?: Prisma.GameResultCreateNestedOneWithoutPairingInput
+}
+
+export type PairingUncheckedCreateWithoutRatingGainsInput = {
+  id?: number
+  category: string
+  round: number
+  mode: $Enums.GameMode
+  whitePlayerId: number
+  blackPlayerId: number
+  availableAt: Date | string
+  createdAt?: Date | string
+  result?: Prisma.GameResultUncheckedCreateNestedOneWithoutPairingInput
+}
+
+export type PairingCreateOrConnectWithoutRatingGainsInput = {
+  where: Prisma.PairingWhereUniqueInput
+  create: Prisma.XOR<Prisma.PairingCreateWithoutRatingGainsInput, Prisma.PairingUncheckedCreateWithoutRatingGainsInput>
+}
+
+export type PairingUpsertWithoutRatingGainsInput = {
+  update: Prisma.XOR<Prisma.PairingUpdateWithoutRatingGainsInput, Prisma.PairingUncheckedUpdateWithoutRatingGainsInput>
+  create: Prisma.XOR<Prisma.PairingCreateWithoutRatingGainsInput, Prisma.PairingUncheckedCreateWithoutRatingGainsInput>
+  where?: Prisma.PairingWhereInput
+}
+
+export type PairingUpdateToOneWithWhereWithoutRatingGainsInput = {
+  where?: Prisma.PairingWhereInput
+  data: Prisma.XOR<Prisma.PairingUpdateWithoutRatingGainsInput, Prisma.PairingUncheckedUpdateWithoutRatingGainsInput>
+}
+
+export type PairingUpdateWithoutRatingGainsInput = {
+  category?: Prisma.StringFieldUpdateOperationsInput | string
+  round?: Prisma.IntFieldUpdateOperationsInput | number
+  mode?: Prisma.EnumGameModeFieldUpdateOperationsInput | $Enums.GameMode
+  availableAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  whitePlayer?: Prisma.PlayerUpdateOneRequiredWithoutWhitePairingsNestedInput
+  blackPlayer?: Prisma.PlayerUpdateOneRequiredWithoutBlackPairingsNestedInput
+  result?: Prisma.GameResultUpdateOneWithoutPairingNestedInput
+}
+
+export type PairingUncheckedUpdateWithoutRatingGainsInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  category?: Prisma.StringFieldUpdateOperationsInput | string
+  round?: Prisma.IntFieldUpdateOperationsInput | number
+  mode?: Prisma.EnumGameModeFieldUpdateOperationsInput | $Enums.GameMode
+  whitePlayerId?: Prisma.IntFieldUpdateOperationsInput | number
+  blackPlayerId?: Prisma.IntFieldUpdateOperationsInput | number
+  availableAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  result?: Prisma.GameResultUncheckedUpdateOneWithoutPairingNestedInput
 }
 
 export type PairingCreateManyWhitePlayerInput = {
   id?: number
   category: string
   round: number
+  mode: $Enums.GameMode
   blackPlayerId: number
   availableAt: Date | string
   createdAt?: Date | string
@@ -710,6 +840,7 @@ export type PairingCreateManyBlackPlayerInput = {
   id?: number
   category: string
   round: number
+  mode: $Enums.GameMode
   whitePlayerId: number
   availableAt: Date | string
   createdAt?: Date | string
@@ -718,8 +849,10 @@ export type PairingCreateManyBlackPlayerInput = {
 export type PairingUpdateWithoutWhitePlayerInput = {
   category?: Prisma.StringFieldUpdateOperationsInput | string
   round?: Prisma.IntFieldUpdateOperationsInput | number
+  mode?: Prisma.EnumGameModeFieldUpdateOperationsInput | $Enums.GameMode
   availableAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  ratingGains?: Prisma.RatingGainUpdateManyWithoutPairingNestedInput
   blackPlayer?: Prisma.PlayerUpdateOneRequiredWithoutBlackPairingsNestedInput
   result?: Prisma.GameResultUpdateOneWithoutPairingNestedInput
 }
@@ -728,9 +861,11 @@ export type PairingUncheckedUpdateWithoutWhitePlayerInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   category?: Prisma.StringFieldUpdateOperationsInput | string
   round?: Prisma.IntFieldUpdateOperationsInput | number
+  mode?: Prisma.EnumGameModeFieldUpdateOperationsInput | $Enums.GameMode
   blackPlayerId?: Prisma.IntFieldUpdateOperationsInput | number
   availableAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  ratingGains?: Prisma.RatingGainUncheckedUpdateManyWithoutPairingNestedInput
   result?: Prisma.GameResultUncheckedUpdateOneWithoutPairingNestedInput
 }
 
@@ -738,6 +873,7 @@ export type PairingUncheckedUpdateManyWithoutWhitePlayerInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   category?: Prisma.StringFieldUpdateOperationsInput | string
   round?: Prisma.IntFieldUpdateOperationsInput | number
+  mode?: Prisma.EnumGameModeFieldUpdateOperationsInput | $Enums.GameMode
   blackPlayerId?: Prisma.IntFieldUpdateOperationsInput | number
   availableAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -746,8 +882,10 @@ export type PairingUncheckedUpdateManyWithoutWhitePlayerInput = {
 export type PairingUpdateWithoutBlackPlayerInput = {
   category?: Prisma.StringFieldUpdateOperationsInput | string
   round?: Prisma.IntFieldUpdateOperationsInput | number
+  mode?: Prisma.EnumGameModeFieldUpdateOperationsInput | $Enums.GameMode
   availableAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  ratingGains?: Prisma.RatingGainUpdateManyWithoutPairingNestedInput
   whitePlayer?: Prisma.PlayerUpdateOneRequiredWithoutWhitePairingsNestedInput
   result?: Prisma.GameResultUpdateOneWithoutPairingNestedInput
 }
@@ -756,9 +894,11 @@ export type PairingUncheckedUpdateWithoutBlackPlayerInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   category?: Prisma.StringFieldUpdateOperationsInput | string
   round?: Prisma.IntFieldUpdateOperationsInput | number
+  mode?: Prisma.EnumGameModeFieldUpdateOperationsInput | $Enums.GameMode
   whitePlayerId?: Prisma.IntFieldUpdateOperationsInput | number
   availableAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  ratingGains?: Prisma.RatingGainUncheckedUpdateManyWithoutPairingNestedInput
   result?: Prisma.GameResultUncheckedUpdateOneWithoutPairingNestedInput
 }
 
@@ -766,30 +906,64 @@ export type PairingUncheckedUpdateManyWithoutBlackPlayerInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   category?: Prisma.StringFieldUpdateOperationsInput | string
   round?: Prisma.IntFieldUpdateOperationsInput | number
+  mode?: Prisma.EnumGameModeFieldUpdateOperationsInput | $Enums.GameMode
   whitePlayerId?: Prisma.IntFieldUpdateOperationsInput | number
   availableAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 
+/**
+ * Count Type PairingCountOutputType
+ */
+
+export type PairingCountOutputType = {
+  ratingGains: number
+}
+
+export type PairingCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  ratingGains?: boolean | PairingCountOutputTypeCountRatingGainsArgs
+}
+
+/**
+ * PairingCountOutputType without action
+ */
+export type PairingCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the PairingCountOutputType
+   */
+  select?: Prisma.PairingCountOutputTypeSelect<ExtArgs> | null
+}
+
+/**
+ * PairingCountOutputType without action
+ */
+export type PairingCountOutputTypeCountRatingGainsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.RatingGainWhereInput
+}
+
 
 export type PairingSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   category?: boolean
   round?: boolean
+  mode?: boolean
   whitePlayerId?: boolean
   blackPlayerId?: boolean
   availableAt?: boolean
   createdAt?: boolean
+  ratingGains?: boolean | Prisma.Pairing$ratingGainsArgs<ExtArgs>
   whitePlayer?: boolean | Prisma.PlayerDefaultArgs<ExtArgs>
   blackPlayer?: boolean | Prisma.PlayerDefaultArgs<ExtArgs>
   result?: boolean | Prisma.Pairing$resultArgs<ExtArgs>
+  _count?: boolean | Prisma.PairingCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["pairing"]>
 
 export type PairingSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   category?: boolean
   round?: boolean
+  mode?: boolean
   whitePlayerId?: boolean
   blackPlayerId?: boolean
   availableAt?: boolean
@@ -802,6 +976,7 @@ export type PairingSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exten
   id?: boolean
   category?: boolean
   round?: boolean
+  mode?: boolean
   whitePlayerId?: boolean
   blackPlayerId?: boolean
   availableAt?: boolean
@@ -814,17 +989,20 @@ export type PairingSelectScalar = {
   id?: boolean
   category?: boolean
   round?: boolean
+  mode?: boolean
   whitePlayerId?: boolean
   blackPlayerId?: boolean
   availableAt?: boolean
   createdAt?: boolean
 }
 
-export type PairingOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "category" | "round" | "whitePlayerId" | "blackPlayerId" | "availableAt" | "createdAt", ExtArgs["result"]["pairing"]>
+export type PairingOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "category" | "round" | "mode" | "whitePlayerId" | "blackPlayerId" | "availableAt" | "createdAt", ExtArgs["result"]["pairing"]>
 export type PairingInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  ratingGains?: boolean | Prisma.Pairing$ratingGainsArgs<ExtArgs>
   whitePlayer?: boolean | Prisma.PlayerDefaultArgs<ExtArgs>
   blackPlayer?: boolean | Prisma.PlayerDefaultArgs<ExtArgs>
   result?: boolean | Prisma.Pairing$resultArgs<ExtArgs>
+  _count?: boolean | Prisma.PairingCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type PairingIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   whitePlayer?: boolean | Prisma.PlayerDefaultArgs<ExtArgs>
@@ -838,6 +1016,7 @@ export type PairingIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Exte
 export type $PairingPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "Pairing"
   objects: {
+    ratingGains: Prisma.$RatingGainPayload<ExtArgs>[]
     whitePlayer: Prisma.$PlayerPayload<ExtArgs>
     blackPlayer: Prisma.$PlayerPayload<ExtArgs>
     result: Prisma.$GameResultPayload<ExtArgs> | null
@@ -846,6 +1025,7 @@ export type $PairingPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     id: number
     category: string
     round: number
+    mode: $Enums.GameMode
     whitePlayerId: number
     blackPlayerId: number
     availableAt: Date
@@ -1244,6 +1424,7 @@ readonly fields: PairingFieldRefs;
  */
 export interface Prisma__PairingClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
+  ratingGains<T extends Prisma.Pairing$ratingGainsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Pairing$ratingGainsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$RatingGainPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   whitePlayer<T extends Prisma.PlayerDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.PlayerDefaultArgs<ExtArgs>>): Prisma.Prisma__PlayerClient<runtime.Types.Result.GetResult<Prisma.$PlayerPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   blackPlayer<T extends Prisma.PlayerDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.PlayerDefaultArgs<ExtArgs>>): Prisma.Prisma__PlayerClient<runtime.Types.Result.GetResult<Prisma.$PlayerPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   result<T extends Prisma.Pairing$resultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Pairing$resultArgs<ExtArgs>>): Prisma.Prisma__GameResultClient<runtime.Types.Result.GetResult<Prisma.$GameResultPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
@@ -1279,6 +1460,7 @@ export interface PairingFieldRefs {
   readonly id: Prisma.FieldRef<"Pairing", 'Int'>
   readonly category: Prisma.FieldRef<"Pairing", 'String'>
   readonly round: Prisma.FieldRef<"Pairing", 'Int'>
+  readonly mode: Prisma.FieldRef<"Pairing", 'GameMode'>
   readonly whitePlayerId: Prisma.FieldRef<"Pairing", 'Int'>
   readonly blackPlayerId: Prisma.FieldRef<"Pairing", 'Int'>
   readonly availableAt: Prisma.FieldRef<"Pairing", 'DateTime'>
@@ -1679,6 +1861,30 @@ export type PairingDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.Inter
    * Limit how many Pairings to delete.
    */
   limit?: number
+}
+
+/**
+ * Pairing.ratingGains
+ */
+export type Pairing$ratingGainsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the RatingGain
+   */
+  select?: Prisma.RatingGainSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the RatingGain
+   */
+  omit?: Prisma.RatingGainOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.RatingGainInclude<ExtArgs> | null
+  where?: Prisma.RatingGainWhereInput
+  orderBy?: Prisma.RatingGainOrderByWithRelationInput | Prisma.RatingGainOrderByWithRelationInput[]
+  cursor?: Prisma.RatingGainWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.RatingGainScalarFieldEnum | Prisma.RatingGainScalarFieldEnum[]
 }
 
 /**

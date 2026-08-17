@@ -58,6 +58,7 @@ export const ModelName = {
   GameResult: 'GameResult',
   PlayerRanking: 'PlayerRanking',
   TeamRanking: 'TeamRanking',
+  RatingGain: 'RatingGain',
   Admin: 'Admin',
   AdminLoginLog: 'AdminLoginLog',
   BlockedIP: 'BlockedIP',
@@ -119,6 +120,7 @@ export const PairingScalarFieldEnum = {
   id: 'id',
   category: 'category',
   round: 'round',
+  mode: 'mode',
   whitePlayerId: 'whitePlayerId',
   blackPlayerId: 'blackPlayerId',
   availableAt: 'availableAt',
@@ -189,6 +191,19 @@ export const TeamRankingScalarFieldEnum = {
 } as const
 
 export type TeamRankingScalarFieldEnum = (typeof TeamRankingScalarFieldEnum)[keyof typeof TeamRankingScalarFieldEnum]
+
+
+export const RatingGainScalarFieldEnum = {
+  id: 'id',
+  playerId: 'playerId',
+  pairingId: 'pairingId',
+  mode: 'mode',
+  amount: 'amount',
+  reason: 'reason',
+  createdAt: 'createdAt'
+} as const
+
+export type RatingGainScalarFieldEnum = (typeof RatingGainScalarFieldEnum)[keyof typeof RatingGainScalarFieldEnum]
 
 
 export const AdminScalarFieldEnum = {

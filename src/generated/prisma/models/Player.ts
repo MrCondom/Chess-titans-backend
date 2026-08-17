@@ -354,6 +354,7 @@ export type PlayerWhereInput = {
   whiteResults?: Prisma.GameResultListRelationFilter
   blackResults?: Prisma.GameResultListRelationFilter
   rankings?: Prisma.PlayerRankingListRelationFilter
+  ratingGains?: Prisma.RatingGainListRelationFilter
 }
 
 export type PlayerOrderByWithRelationInput = {
@@ -380,6 +381,7 @@ export type PlayerOrderByWithRelationInput = {
   whiteResults?: Prisma.GameResultOrderByRelationAggregateInput
   blackResults?: Prisma.GameResultOrderByRelationAggregateInput
   rankings?: Prisma.PlayerRankingOrderByRelationAggregateInput
+  ratingGains?: Prisma.RatingGainOrderByRelationAggregateInput
 }
 
 export type PlayerWhereUniqueInput = Prisma.AtLeast<{
@@ -409,6 +411,7 @@ export type PlayerWhereUniqueInput = Prisma.AtLeast<{
   whiteResults?: Prisma.GameResultListRelationFilter
   blackResults?: Prisma.GameResultListRelationFilter
   rankings?: Prisma.PlayerRankingListRelationFilter
+  ratingGains?: Prisma.RatingGainListRelationFilter
 }, "id" | "username">
 
 export type PlayerOrderByWithAggregationInput = {
@@ -481,6 +484,7 @@ export type PlayerCreateInput = {
   whiteResults?: Prisma.GameResultCreateNestedManyWithoutWhitePlayerInput
   blackResults?: Prisma.GameResultCreateNestedManyWithoutBlackPlayerInput
   rankings?: Prisma.PlayerRankingCreateNestedManyWithoutPlayerInput
+  ratingGains?: Prisma.RatingGainCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerUncheckedCreateInput = {
@@ -506,6 +510,7 @@ export type PlayerUncheckedCreateInput = {
   whiteResults?: Prisma.GameResultUncheckedCreateNestedManyWithoutWhitePlayerInput
   blackResults?: Prisma.GameResultUncheckedCreateNestedManyWithoutBlackPlayerInput
   rankings?: Prisma.PlayerRankingUncheckedCreateNestedManyWithoutPlayerInput
+  ratingGains?: Prisma.RatingGainUncheckedCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerUpdateInput = {
@@ -530,6 +535,7 @@ export type PlayerUpdateInput = {
   whiteResults?: Prisma.GameResultUpdateManyWithoutWhitePlayerNestedInput
   blackResults?: Prisma.GameResultUpdateManyWithoutBlackPlayerNestedInput
   rankings?: Prisma.PlayerRankingUpdateManyWithoutPlayerNestedInput
+  ratingGains?: Prisma.RatingGainUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerUncheckedUpdateInput = {
@@ -555,6 +561,7 @@ export type PlayerUncheckedUpdateInput = {
   whiteResults?: Prisma.GameResultUncheckedUpdateManyWithoutWhitePlayerNestedInput
   blackResults?: Prisma.GameResultUncheckedUpdateManyWithoutBlackPlayerNestedInput
   rankings?: Prisma.PlayerRankingUncheckedUpdateManyWithoutPlayerNestedInput
+  ratingGains?: Prisma.RatingGainUncheckedUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerCreateManyInput = {
@@ -856,6 +863,20 @@ export type PlayerUpdateOneRequiredWithoutRankingsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.PlayerUpdateToOneWithWhereWithoutRankingsInput, Prisma.PlayerUpdateWithoutRankingsInput>, Prisma.PlayerUncheckedUpdateWithoutRankingsInput>
 }
 
+export type PlayerCreateNestedOneWithoutRatingGainsInput = {
+  create?: Prisma.XOR<Prisma.PlayerCreateWithoutRatingGainsInput, Prisma.PlayerUncheckedCreateWithoutRatingGainsInput>
+  connectOrCreate?: Prisma.PlayerCreateOrConnectWithoutRatingGainsInput
+  connect?: Prisma.PlayerWhereUniqueInput
+}
+
+export type PlayerUpdateOneRequiredWithoutRatingGainsNestedInput = {
+  create?: Prisma.XOR<Prisma.PlayerCreateWithoutRatingGainsInput, Prisma.PlayerUncheckedCreateWithoutRatingGainsInput>
+  connectOrCreate?: Prisma.PlayerCreateOrConnectWithoutRatingGainsInput
+  upsert?: Prisma.PlayerUpsertWithoutRatingGainsInput
+  connect?: Prisma.PlayerWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.PlayerUpdateToOneWithWhereWithoutRatingGainsInput, Prisma.PlayerUpdateWithoutRatingGainsInput>, Prisma.PlayerUncheckedUpdateWithoutRatingGainsInput>
+}
+
 export type PlayerCreateWithoutTeamInput = {
   fullName: string
   username: string
@@ -877,6 +898,7 @@ export type PlayerCreateWithoutTeamInput = {
   whiteResults?: Prisma.GameResultCreateNestedManyWithoutWhitePlayerInput
   blackResults?: Prisma.GameResultCreateNestedManyWithoutBlackPlayerInput
   rankings?: Prisma.PlayerRankingCreateNestedManyWithoutPlayerInput
+  ratingGains?: Prisma.RatingGainCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerUncheckedCreateWithoutTeamInput = {
@@ -901,6 +923,7 @@ export type PlayerUncheckedCreateWithoutTeamInput = {
   whiteResults?: Prisma.GameResultUncheckedCreateNestedManyWithoutWhitePlayerInput
   blackResults?: Prisma.GameResultUncheckedCreateNestedManyWithoutBlackPlayerInput
   rankings?: Prisma.PlayerRankingUncheckedCreateNestedManyWithoutPlayerInput
+  ratingGains?: Prisma.RatingGainUncheckedCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerCreateOrConnectWithoutTeamInput = {
@@ -972,6 +995,7 @@ export type PlayerCreateWithoutWhitePairingsInput = {
   whiteResults?: Prisma.GameResultCreateNestedManyWithoutWhitePlayerInput
   blackResults?: Prisma.GameResultCreateNestedManyWithoutBlackPlayerInput
   rankings?: Prisma.PlayerRankingCreateNestedManyWithoutPlayerInput
+  ratingGains?: Prisma.RatingGainCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerUncheckedCreateWithoutWhitePairingsInput = {
@@ -996,6 +1020,7 @@ export type PlayerUncheckedCreateWithoutWhitePairingsInput = {
   whiteResults?: Prisma.GameResultUncheckedCreateNestedManyWithoutWhitePlayerInput
   blackResults?: Prisma.GameResultUncheckedCreateNestedManyWithoutBlackPlayerInput
   rankings?: Prisma.PlayerRankingUncheckedCreateNestedManyWithoutPlayerInput
+  ratingGains?: Prisma.RatingGainUncheckedCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerCreateOrConnectWithoutWhitePairingsInput = {
@@ -1024,6 +1049,7 @@ export type PlayerCreateWithoutBlackPairingsInput = {
   whiteResults?: Prisma.GameResultCreateNestedManyWithoutWhitePlayerInput
   blackResults?: Prisma.GameResultCreateNestedManyWithoutBlackPlayerInput
   rankings?: Prisma.PlayerRankingCreateNestedManyWithoutPlayerInput
+  ratingGains?: Prisma.RatingGainCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerUncheckedCreateWithoutBlackPairingsInput = {
@@ -1048,6 +1074,7 @@ export type PlayerUncheckedCreateWithoutBlackPairingsInput = {
   whiteResults?: Prisma.GameResultUncheckedCreateNestedManyWithoutWhitePlayerInput
   blackResults?: Prisma.GameResultUncheckedCreateNestedManyWithoutBlackPlayerInput
   rankings?: Prisma.PlayerRankingUncheckedCreateNestedManyWithoutPlayerInput
+  ratingGains?: Prisma.RatingGainUncheckedCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerCreateOrConnectWithoutBlackPairingsInput = {
@@ -1087,6 +1114,7 @@ export type PlayerUpdateWithoutWhitePairingsInput = {
   whiteResults?: Prisma.GameResultUpdateManyWithoutWhitePlayerNestedInput
   blackResults?: Prisma.GameResultUpdateManyWithoutBlackPlayerNestedInput
   rankings?: Prisma.PlayerRankingUpdateManyWithoutPlayerNestedInput
+  ratingGains?: Prisma.RatingGainUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerUncheckedUpdateWithoutWhitePairingsInput = {
@@ -1111,6 +1139,7 @@ export type PlayerUncheckedUpdateWithoutWhitePairingsInput = {
   whiteResults?: Prisma.GameResultUncheckedUpdateManyWithoutWhitePlayerNestedInput
   blackResults?: Prisma.GameResultUncheckedUpdateManyWithoutBlackPlayerNestedInput
   rankings?: Prisma.PlayerRankingUncheckedUpdateManyWithoutPlayerNestedInput
+  ratingGains?: Prisma.RatingGainUncheckedUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerUpsertWithoutBlackPairingsInput = {
@@ -1145,6 +1174,7 @@ export type PlayerUpdateWithoutBlackPairingsInput = {
   whiteResults?: Prisma.GameResultUpdateManyWithoutWhitePlayerNestedInput
   blackResults?: Prisma.GameResultUpdateManyWithoutBlackPlayerNestedInput
   rankings?: Prisma.PlayerRankingUpdateManyWithoutPlayerNestedInput
+  ratingGains?: Prisma.RatingGainUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerUncheckedUpdateWithoutBlackPairingsInput = {
@@ -1169,6 +1199,7 @@ export type PlayerUncheckedUpdateWithoutBlackPairingsInput = {
   whiteResults?: Prisma.GameResultUncheckedUpdateManyWithoutWhitePlayerNestedInput
   blackResults?: Prisma.GameResultUncheckedUpdateManyWithoutBlackPlayerNestedInput
   rankings?: Prisma.PlayerRankingUncheckedUpdateManyWithoutPlayerNestedInput
+  ratingGains?: Prisma.RatingGainUncheckedUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerCreateWithoutWhiteResultsInput = {
@@ -1192,6 +1223,7 @@ export type PlayerCreateWithoutWhiteResultsInput = {
   blackPairings?: Prisma.PairingCreateNestedManyWithoutBlackPlayerInput
   blackResults?: Prisma.GameResultCreateNestedManyWithoutBlackPlayerInput
   rankings?: Prisma.PlayerRankingCreateNestedManyWithoutPlayerInput
+  ratingGains?: Prisma.RatingGainCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerUncheckedCreateWithoutWhiteResultsInput = {
@@ -1216,6 +1248,7 @@ export type PlayerUncheckedCreateWithoutWhiteResultsInput = {
   blackPairings?: Prisma.PairingUncheckedCreateNestedManyWithoutBlackPlayerInput
   blackResults?: Prisma.GameResultUncheckedCreateNestedManyWithoutBlackPlayerInput
   rankings?: Prisma.PlayerRankingUncheckedCreateNestedManyWithoutPlayerInput
+  ratingGains?: Prisma.RatingGainUncheckedCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerCreateOrConnectWithoutWhiteResultsInput = {
@@ -1244,6 +1277,7 @@ export type PlayerCreateWithoutBlackResultsInput = {
   blackPairings?: Prisma.PairingCreateNestedManyWithoutBlackPlayerInput
   whiteResults?: Prisma.GameResultCreateNestedManyWithoutWhitePlayerInput
   rankings?: Prisma.PlayerRankingCreateNestedManyWithoutPlayerInput
+  ratingGains?: Prisma.RatingGainCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerUncheckedCreateWithoutBlackResultsInput = {
@@ -1268,6 +1302,7 @@ export type PlayerUncheckedCreateWithoutBlackResultsInput = {
   blackPairings?: Prisma.PairingUncheckedCreateNestedManyWithoutBlackPlayerInput
   whiteResults?: Prisma.GameResultUncheckedCreateNestedManyWithoutWhitePlayerInput
   rankings?: Prisma.PlayerRankingUncheckedCreateNestedManyWithoutPlayerInput
+  ratingGains?: Prisma.RatingGainUncheckedCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerCreateOrConnectWithoutBlackResultsInput = {
@@ -1307,6 +1342,7 @@ export type PlayerUpdateWithoutWhiteResultsInput = {
   blackPairings?: Prisma.PairingUpdateManyWithoutBlackPlayerNestedInput
   blackResults?: Prisma.GameResultUpdateManyWithoutBlackPlayerNestedInput
   rankings?: Prisma.PlayerRankingUpdateManyWithoutPlayerNestedInput
+  ratingGains?: Prisma.RatingGainUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerUncheckedUpdateWithoutWhiteResultsInput = {
@@ -1331,6 +1367,7 @@ export type PlayerUncheckedUpdateWithoutWhiteResultsInput = {
   blackPairings?: Prisma.PairingUncheckedUpdateManyWithoutBlackPlayerNestedInput
   blackResults?: Prisma.GameResultUncheckedUpdateManyWithoutBlackPlayerNestedInput
   rankings?: Prisma.PlayerRankingUncheckedUpdateManyWithoutPlayerNestedInput
+  ratingGains?: Prisma.RatingGainUncheckedUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerUpsertWithoutBlackResultsInput = {
@@ -1365,6 +1402,7 @@ export type PlayerUpdateWithoutBlackResultsInput = {
   blackPairings?: Prisma.PairingUpdateManyWithoutBlackPlayerNestedInput
   whiteResults?: Prisma.GameResultUpdateManyWithoutWhitePlayerNestedInput
   rankings?: Prisma.PlayerRankingUpdateManyWithoutPlayerNestedInput
+  ratingGains?: Prisma.RatingGainUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerUncheckedUpdateWithoutBlackResultsInput = {
@@ -1389,6 +1427,7 @@ export type PlayerUncheckedUpdateWithoutBlackResultsInput = {
   blackPairings?: Prisma.PairingUncheckedUpdateManyWithoutBlackPlayerNestedInput
   whiteResults?: Prisma.GameResultUncheckedUpdateManyWithoutWhitePlayerNestedInput
   rankings?: Prisma.PlayerRankingUncheckedUpdateManyWithoutPlayerNestedInput
+  ratingGains?: Prisma.RatingGainUncheckedUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerCreateWithoutRankingsInput = {
@@ -1412,6 +1451,7 @@ export type PlayerCreateWithoutRankingsInput = {
   blackPairings?: Prisma.PairingCreateNestedManyWithoutBlackPlayerInput
   whiteResults?: Prisma.GameResultCreateNestedManyWithoutWhitePlayerInput
   blackResults?: Prisma.GameResultCreateNestedManyWithoutBlackPlayerInput
+  ratingGains?: Prisma.RatingGainCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerUncheckedCreateWithoutRankingsInput = {
@@ -1436,6 +1476,7 @@ export type PlayerUncheckedCreateWithoutRankingsInput = {
   blackPairings?: Prisma.PairingUncheckedCreateNestedManyWithoutBlackPlayerInput
   whiteResults?: Prisma.GameResultUncheckedCreateNestedManyWithoutWhitePlayerInput
   blackResults?: Prisma.GameResultUncheckedCreateNestedManyWithoutBlackPlayerInput
+  ratingGains?: Prisma.RatingGainUncheckedCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerCreateOrConnectWithoutRankingsInput = {
@@ -1475,6 +1516,7 @@ export type PlayerUpdateWithoutRankingsInput = {
   blackPairings?: Prisma.PairingUpdateManyWithoutBlackPlayerNestedInput
   whiteResults?: Prisma.GameResultUpdateManyWithoutWhitePlayerNestedInput
   blackResults?: Prisma.GameResultUpdateManyWithoutBlackPlayerNestedInput
+  ratingGains?: Prisma.RatingGainUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerUncheckedUpdateWithoutRankingsInput = {
@@ -1499,6 +1541,121 @@ export type PlayerUncheckedUpdateWithoutRankingsInput = {
   blackPairings?: Prisma.PairingUncheckedUpdateManyWithoutBlackPlayerNestedInput
   whiteResults?: Prisma.GameResultUncheckedUpdateManyWithoutWhitePlayerNestedInput
   blackResults?: Prisma.GameResultUncheckedUpdateManyWithoutBlackPlayerNestedInput
+  ratingGains?: Prisma.RatingGainUncheckedUpdateManyWithoutPlayerNestedInput
+}
+
+export type PlayerCreateWithoutRatingGainsInput = {
+  fullName: string
+  username: string
+  rapidRating?: number
+  blitzRating?: number
+  bulletRating?: number
+  rapidGain?: number
+  blitzGain?: number
+  bulletGain?: number
+  status?: $Enums.PlayerStatus
+  category?: string
+  bio?: string
+  totalPoints?: number
+  totalRounds?: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  team?: Prisma.TeamCreateNestedOneWithoutPlayersInput
+  whitePairings?: Prisma.PairingCreateNestedManyWithoutWhitePlayerInput
+  blackPairings?: Prisma.PairingCreateNestedManyWithoutBlackPlayerInput
+  whiteResults?: Prisma.GameResultCreateNestedManyWithoutWhitePlayerInput
+  blackResults?: Prisma.GameResultCreateNestedManyWithoutBlackPlayerInput
+  rankings?: Prisma.PlayerRankingCreateNestedManyWithoutPlayerInput
+}
+
+export type PlayerUncheckedCreateWithoutRatingGainsInput = {
+  id?: number
+  fullName: string
+  username: string
+  rapidRating?: number
+  blitzRating?: number
+  bulletRating?: number
+  rapidGain?: number
+  blitzGain?: number
+  bulletGain?: number
+  status?: $Enums.PlayerStatus
+  category?: string
+  bio?: string
+  totalPoints?: number
+  totalRounds?: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  teamId?: number | null
+  whitePairings?: Prisma.PairingUncheckedCreateNestedManyWithoutWhitePlayerInput
+  blackPairings?: Prisma.PairingUncheckedCreateNestedManyWithoutBlackPlayerInput
+  whiteResults?: Prisma.GameResultUncheckedCreateNestedManyWithoutWhitePlayerInput
+  blackResults?: Prisma.GameResultUncheckedCreateNestedManyWithoutBlackPlayerInput
+  rankings?: Prisma.PlayerRankingUncheckedCreateNestedManyWithoutPlayerInput
+}
+
+export type PlayerCreateOrConnectWithoutRatingGainsInput = {
+  where: Prisma.PlayerWhereUniqueInput
+  create: Prisma.XOR<Prisma.PlayerCreateWithoutRatingGainsInput, Prisma.PlayerUncheckedCreateWithoutRatingGainsInput>
+}
+
+export type PlayerUpsertWithoutRatingGainsInput = {
+  update: Prisma.XOR<Prisma.PlayerUpdateWithoutRatingGainsInput, Prisma.PlayerUncheckedUpdateWithoutRatingGainsInput>
+  create: Prisma.XOR<Prisma.PlayerCreateWithoutRatingGainsInput, Prisma.PlayerUncheckedCreateWithoutRatingGainsInput>
+  where?: Prisma.PlayerWhereInput
+}
+
+export type PlayerUpdateToOneWithWhereWithoutRatingGainsInput = {
+  where?: Prisma.PlayerWhereInput
+  data: Prisma.XOR<Prisma.PlayerUpdateWithoutRatingGainsInput, Prisma.PlayerUncheckedUpdateWithoutRatingGainsInput>
+}
+
+export type PlayerUpdateWithoutRatingGainsInput = {
+  fullName?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
+  rapidRating?: Prisma.IntFieldUpdateOperationsInput | number
+  blitzRating?: Prisma.IntFieldUpdateOperationsInput | number
+  bulletRating?: Prisma.IntFieldUpdateOperationsInput | number
+  rapidGain?: Prisma.IntFieldUpdateOperationsInput | number
+  blitzGain?: Prisma.IntFieldUpdateOperationsInput | number
+  bulletGain?: Prisma.IntFieldUpdateOperationsInput | number
+  status?: Prisma.EnumPlayerStatusFieldUpdateOperationsInput | $Enums.PlayerStatus
+  category?: Prisma.StringFieldUpdateOperationsInput | string
+  bio?: Prisma.StringFieldUpdateOperationsInput | string
+  totalPoints?: Prisma.IntFieldUpdateOperationsInput | number
+  totalRounds?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  team?: Prisma.TeamUpdateOneWithoutPlayersNestedInput
+  whitePairings?: Prisma.PairingUpdateManyWithoutWhitePlayerNestedInput
+  blackPairings?: Prisma.PairingUpdateManyWithoutBlackPlayerNestedInput
+  whiteResults?: Prisma.GameResultUpdateManyWithoutWhitePlayerNestedInput
+  blackResults?: Prisma.GameResultUpdateManyWithoutBlackPlayerNestedInput
+  rankings?: Prisma.PlayerRankingUpdateManyWithoutPlayerNestedInput
+}
+
+export type PlayerUncheckedUpdateWithoutRatingGainsInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  fullName?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
+  rapidRating?: Prisma.IntFieldUpdateOperationsInput | number
+  blitzRating?: Prisma.IntFieldUpdateOperationsInput | number
+  bulletRating?: Prisma.IntFieldUpdateOperationsInput | number
+  rapidGain?: Prisma.IntFieldUpdateOperationsInput | number
+  blitzGain?: Prisma.IntFieldUpdateOperationsInput | number
+  bulletGain?: Prisma.IntFieldUpdateOperationsInput | number
+  status?: Prisma.EnumPlayerStatusFieldUpdateOperationsInput | $Enums.PlayerStatus
+  category?: Prisma.StringFieldUpdateOperationsInput | string
+  bio?: Prisma.StringFieldUpdateOperationsInput | string
+  totalPoints?: Prisma.IntFieldUpdateOperationsInput | number
+  totalRounds?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  teamId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  whitePairings?: Prisma.PairingUncheckedUpdateManyWithoutWhitePlayerNestedInput
+  blackPairings?: Prisma.PairingUncheckedUpdateManyWithoutBlackPlayerNestedInput
+  whiteResults?: Prisma.GameResultUncheckedUpdateManyWithoutWhitePlayerNestedInput
+  blackResults?: Prisma.GameResultUncheckedUpdateManyWithoutBlackPlayerNestedInput
+  rankings?: Prisma.PlayerRankingUncheckedUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerCreateManyTeamInput = {
@@ -1541,6 +1698,7 @@ export type PlayerUpdateWithoutTeamInput = {
   whiteResults?: Prisma.GameResultUpdateManyWithoutWhitePlayerNestedInput
   blackResults?: Prisma.GameResultUpdateManyWithoutBlackPlayerNestedInput
   rankings?: Prisma.PlayerRankingUpdateManyWithoutPlayerNestedInput
+  ratingGains?: Prisma.RatingGainUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerUncheckedUpdateWithoutTeamInput = {
@@ -1565,6 +1723,7 @@ export type PlayerUncheckedUpdateWithoutTeamInput = {
   whiteResults?: Prisma.GameResultUncheckedUpdateManyWithoutWhitePlayerNestedInput
   blackResults?: Prisma.GameResultUncheckedUpdateManyWithoutBlackPlayerNestedInput
   rankings?: Prisma.PlayerRankingUncheckedUpdateManyWithoutPlayerNestedInput
+  ratingGains?: Prisma.RatingGainUncheckedUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerUncheckedUpdateManyWithoutTeamInput = {
@@ -1597,6 +1756,7 @@ export type PlayerCountOutputType = {
   whiteResults: number
   blackResults: number
   rankings: number
+  ratingGains: number
 }
 
 export type PlayerCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1605,6 +1765,7 @@ export type PlayerCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions
   whiteResults?: boolean | PlayerCountOutputTypeCountWhiteResultsArgs
   blackResults?: boolean | PlayerCountOutputTypeCountBlackResultsArgs
   rankings?: boolean | PlayerCountOutputTypeCountRankingsArgs
+  ratingGains?: boolean | PlayerCountOutputTypeCountRatingGainsArgs
 }
 
 /**
@@ -1652,6 +1813,13 @@ export type PlayerCountOutputTypeCountRankingsArgs<ExtArgs extends runtime.Types
   where?: Prisma.PlayerRankingWhereInput
 }
 
+/**
+ * PlayerCountOutputType without action
+ */
+export type PlayerCountOutputTypeCountRatingGainsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.RatingGainWhereInput
+}
+
 
 export type PlayerSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -1677,6 +1845,7 @@ export type PlayerSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs =
   whiteResults?: boolean | Prisma.Player$whiteResultsArgs<ExtArgs>
   blackResults?: boolean | Prisma.Player$blackResultsArgs<ExtArgs>
   rankings?: boolean | Prisma.Player$rankingsArgs<ExtArgs>
+  ratingGains?: boolean | Prisma.Player$ratingGainsArgs<ExtArgs>
   _count?: boolean | Prisma.PlayerCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["player"]>
 
@@ -1750,6 +1919,7 @@ export type PlayerInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   whiteResults?: boolean | Prisma.Player$whiteResultsArgs<ExtArgs>
   blackResults?: boolean | Prisma.Player$blackResultsArgs<ExtArgs>
   rankings?: boolean | Prisma.Player$rankingsArgs<ExtArgs>
+  ratingGains?: boolean | Prisma.Player$ratingGainsArgs<ExtArgs>
   _count?: boolean | Prisma.PlayerCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type PlayerIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1768,6 +1938,7 @@ export type $PlayerPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs
     whiteResults: Prisma.$GameResultPayload<ExtArgs>[]
     blackResults: Prisma.$GameResultPayload<ExtArgs>[]
     rankings: Prisma.$PlayerRankingPayload<ExtArgs>[]
+    ratingGains: Prisma.$RatingGainPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: number
@@ -2187,6 +2358,7 @@ export interface Prisma__PlayerClient<T, Null = never, ExtArgs extends runtime.T
   whiteResults<T extends Prisma.Player$whiteResultsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Player$whiteResultsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$GameResultPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   blackResults<T extends Prisma.Player$blackResultsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Player$blackResultsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$GameResultPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   rankings<T extends Prisma.Player$rankingsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Player$rankingsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$PlayerRankingPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  ratingGains<T extends Prisma.Player$ratingGainsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Player$ratingGainsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$RatingGainPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2768,6 +2940,30 @@ export type Player$rankingsArgs<ExtArgs extends runtime.Types.Extensions.Interna
   take?: number
   skip?: number
   distinct?: Prisma.PlayerRankingScalarFieldEnum | Prisma.PlayerRankingScalarFieldEnum[]
+}
+
+/**
+ * Player.ratingGains
+ */
+export type Player$ratingGainsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the RatingGain
+   */
+  select?: Prisma.RatingGainSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the RatingGain
+   */
+  omit?: Prisma.RatingGainOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.RatingGainInclude<ExtArgs> | null
+  where?: Prisma.RatingGainWhereInput
+  orderBy?: Prisma.RatingGainOrderByWithRelationInput | Prisma.RatingGainOrderByWithRelationInput[]
+  cursor?: Prisma.RatingGainWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.RatingGainScalarFieldEnum | Prisma.RatingGainScalarFieldEnum[]
 }
 
 /**

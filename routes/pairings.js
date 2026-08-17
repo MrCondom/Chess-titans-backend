@@ -75,7 +75,6 @@ router.post("/create", async (req, res) => {
       where: {
         category,
         status: "ACTIVE",
-        deleted: false,
       },
       orderBy: {
         id: "asc",

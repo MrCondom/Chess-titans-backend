@@ -53,6 +53,11 @@ export type PlayerRanking = Prisma.PlayerRankingModel
  */
 export type TeamRanking = Prisma.TeamRankingModel
 /**
+ * Model RatingGain
+ * 
+ */
+export type RatingGain = Prisma.RatingGainModel
+/**
  * Model Admin
  * 
  */

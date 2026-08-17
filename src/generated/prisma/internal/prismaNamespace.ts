@@ -404,6 +404,7 @@ export const ModelName = {
   GameResult: 'GameResult',
   PlayerRanking: 'PlayerRanking',
   TeamRanking: 'TeamRanking',
+  RatingGain: 'RatingGain',
   Admin: 'Admin',
   AdminLoginLog: 'AdminLoginLog',
   BlockedIP: 'BlockedIP',
@@ -423,7 +424,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "player" | "team" | "pairing" | "teamPairing" | "gameResult" | "playerRanking" | "teamRanking" | "admin" | "adminLoginLog" | "blockedIP" | "announcement"
+    modelProps: "player" | "team" | "pairing" | "teamPairing" | "gameResult" | "playerRanking" | "teamRanking" | "ratingGain" | "admin" | "adminLoginLog" | "blockedIP" | "announcement"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -945,6 +946,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    RatingGain: {
+      payload: Prisma.$RatingGainPayload<ExtArgs>
+      fields: Prisma.RatingGainFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.RatingGainFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RatingGainPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.RatingGainFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RatingGainPayload>
+        }
+        findFirst: {
+          args: Prisma.RatingGainFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RatingGainPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.RatingGainFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RatingGainPayload>
+        }
+        findMany: {
+          args: Prisma.RatingGainFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RatingGainPayload>[]
+        }
+        create: {
+          args: Prisma.RatingGainCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RatingGainPayload>
+        }
+        createMany: {
+          args: Prisma.RatingGainCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.RatingGainCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RatingGainPayload>[]
+        }
+        delete: {
+          args: Prisma.RatingGainDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RatingGainPayload>
+        }
+        update: {
+          args: Prisma.RatingGainUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RatingGainPayload>
+        }
+        deleteMany: {
+          args: Prisma.RatingGainDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.RatingGainUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.RatingGainUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RatingGainPayload>[]
+        }
+        upsert: {
+          args: Prisma.RatingGainUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RatingGainPayload>
+        }
+        aggregate: {
+          args: Prisma.RatingGainAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateRatingGain>
+        }
+        groupBy: {
+          args: Prisma.RatingGainGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.RatingGainGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.RatingGainCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.RatingGainCountAggregateOutputType> | number
+        }
+      }
+    }
     Admin: {
       payload: Prisma.$AdminPayload<ExtArgs>
       fields: Prisma.AdminFieldRefs
@@ -1319,6 +1394,7 @@ export const PairingScalarFieldEnum = {
   id: 'id',
   category: 'category',
   round: 'round',
+  mode: 'mode',
   whitePlayerId: 'whitePlayerId',
   blackPlayerId: 'blackPlayerId',
   availableAt: 'availableAt',
@@ -1389,6 +1465,19 @@ export const TeamRankingScalarFieldEnum = {
 } as const
 
 export type TeamRankingScalarFieldEnum = (typeof TeamRankingScalarFieldEnum)[keyof typeof TeamRankingScalarFieldEnum]
+
+
+export const RatingGainScalarFieldEnum = {
+  id: 'id',
+  playerId: 'playerId',
+  pairingId: 'pairingId',
+  mode: 'mode',
+  amount: 'amount',
+  reason: 'reason',
+  createdAt: 'createdAt'
+} as const
+
+export type RatingGainScalarFieldEnum = (typeof RatingGainScalarFieldEnum)[keyof typeof RatingGainScalarFieldEnum]
 
 
 export const AdminScalarFieldEnum = {
@@ -1673,6 +1762,7 @@ export type GlobalOmitConfig = {
   gameResult?: Prisma.GameResultOmit
   playerRanking?: Prisma.PlayerRankingOmit
   teamRanking?: Prisma.TeamRankingOmit
+  ratingGain?: Prisma.RatingGainOmit
   admin?: Prisma.AdminOmit
   adminLoginLog?: Prisma.AdminLoginLogOmit
   blockedIP?: Prisma.BlockedIPOmit

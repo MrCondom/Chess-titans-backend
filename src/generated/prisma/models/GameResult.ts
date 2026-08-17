@@ -685,10 +685,6 @@ export type GameResultUncheckedUpdateOneWithoutPairingNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.GameResultUpdateToOneWithWhereWithoutPairingInput, Prisma.GameResultUpdateWithoutPairingInput>, Prisma.GameResultUncheckedUpdateWithoutPairingInput>
 }
 
-export type EnumGameModeFieldUpdateOperationsInput = {
-  set?: $Enums.GameMode
-}
-
 export type FloatFieldUpdateOperationsInput = {
   set?: number
   increment?: number
