@@ -1,4 +1,5 @@
 const prisma = require("../lib/prisma");
+const router = express.Router();
 
 const {
   calculateRatingChange,
@@ -99,9 +100,15 @@ router.post("/record-result", async (req, res) => {
       white,
       black,
       result,
-      ratings: mode = "rapid",
+      mode = "rapid",
+      ratings, // backward compatibility with old frontend
       round,
     } = req.body;
+
+    // Support old frontend sending "ratings"
+    if (!req.body.mode && ratings !== undefined) {
+      mode = ratings;
+    }
 
     white = String(white || "").trim().toLowerCase();
     black = String(black || "").trim().toLowerCase();
@@ -110,7 +117,7 @@ router.post("/record-result", async (req, res) => {
 
     round = Number(round);
 
-    if (!white || !black || !result || !round) {
+    if (!white || !black || !result || !Number.isInteger(round)) {
       return res.status(400).json({
         success: false,
         message: "white, black, result and round are required.",
@@ -124,7 +131,12 @@ router.post("/record-result", async (req, res) => {
       });
     }
 
-   
+    /*
+    |--------------------------------------------------------------------------
+    | FIND PAIRING
+    |--------------------------------------------------------------------------
+    */
+
     const pairing = await prisma.pairing.findFirst({
       where: {
         round,
@@ -142,6 +154,7 @@ router.post("/record-result", async (req, res) => {
       include: {
         whitePlayer: true,
         blackPlayer: true,
+        result: true,
       },
     });
 
@@ -152,16 +165,27 @@ router.post("/record-result", async (req, res) => {
       });
     }
 
-    
-    if (pairing.result !== "PENDING") {
+    /*
+    |--------------------------------------------------------------------------
+    | CHECK IF RESULT ALREADY EXISTS
+    |--------------------------------------------------------------------------
+    */
+
+    if (pairing.result) {
       return res.status(400).json({
         success: false,
         message: "This match has already been recorded.",
       });
     }
 
-   
+    /*
+    |--------------------------------------------------------------------------
+    | PARSE RESULT
+    |--------------------------------------------------------------------------
+    */
+
     const parts = String(result)
+      .trim()
       .split(":")
       .map((value) => Number(value));
 
@@ -172,28 +196,36 @@ router.post("/record-result", async (req, res) => {
     ) {
       return res.status(400).json({
         success: false,
-        message: "Invalid score format. Example: 1:0 or 0.5:0.5",
+        message: "Invalid score format. Use 1:0, 0:1 or 0.5:0.5.",
       });
     }
 
     const scoreWhite = parts[0];
     const scoreBlack = parts[1];
 
-    
-    if (scoreWhite < 0 || scoreBlack < 0) {
+    /*
+    |--------------------------------------------------------------------------
+    | VALIDATE CHESS RESULT
+    |--------------------------------------------------------------------------
+    */
+
+    const validResult =
+      (scoreWhite === 1 && scoreBlack === 0) ||
+      (scoreWhite === 0 && scoreBlack === 1) ||
+      (scoreWhite === 0.5 && scoreBlack === 0.5);
+
+    if (!validResult) {
       return res.status(400).json({
         success: false,
-        message: "Scores cannot be negative.",
+        message: "Invalid result. Use 1:0, 0:1 or 0.5:0.5.",
       });
     }
 
-    if (scoreWhite === scoreBlack) {
-      // Draw
-    } else if (
-      scoreWhite < scoreBlack
-    ) {
-      // Black wins
-    }
+    /*
+    |--------------------------------------------------------------------------
+    | DETERMINE RESULT
+    |--------------------------------------------------------------------------
+    */
 
     let pairingResult;
 
@@ -205,6 +237,12 @@ router.post("/record-result", async (req, res) => {
       pairingResult = "DRAW";
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | GET CURRENT RATINGS
+    |--------------------------------------------------------------------------
+    */
+
     const whiteRating = getPlayerRating(
       pairing.whitePlayer,
       mode
@@ -215,11 +253,16 @@ router.post("/record-result", async (req, res) => {
       mode
     );
 
-    
+    /*
+    |--------------------------------------------------------------------------
+    | GET PREVIOUS RATING GAINS
+    |--------------------------------------------------------------------------
+    */
 
     const previousGains = await prisma.ratingGain.findMany({
       where: {
         mode,
+
         playerId: {
           in: [
             pairing.whitePlayerId,
@@ -237,18 +280,25 @@ router.post("/record-result", async (req, res) => {
       },
     });
 
-   
-    let {
-      changeA,
-      changeB,
-    } = calculateRatingChange(
+    /*
+    |--------------------------------------------------------------------------
+    | CALCULATE BASE RATING CHANGE
+    |--------------------------------------------------------------------------
+    */
+
+    let { changeA, changeB } = calculateRatingChange(
       whiteRating,
       blackRating,
       scoreWhite,
       scoreBlack
     );
 
-    
+    /*
+    |--------------------------------------------------------------------------
+    | CALCULATE STREAKS
+    |--------------------------------------------------------------------------
+    */
+
     const whiteStreaks = getPlayerStreaks(
       previousGains,
       pairing.whitePlayerId,
@@ -269,21 +319,34 @@ router.post("/record-result", async (req, res) => {
     let winStreakBlack = blackStreaks.win;
     let lossStreakBlack = blackStreaks.loss;
 
-    // Count this result
+    /*
+    |--------------------------------------------------------------------------
+    | COUNT CURRENT RESULT IN STREAK
+    |--------------------------------------------------------------------------
+    */
+
     if (scoreWhite > scoreBlack) {
       winStreakWhite++;
+      lossStreakWhite = 0;
     } else if (scoreWhite < scoreBlack) {
       lossStreakWhite++;
+      winStreakWhite = 0;
     }
 
     if (scoreBlack > scoreWhite) {
       winStreakBlack++;
+      lossStreakBlack = 0;
     } else if (scoreBlack < scoreWhite) {
       lossStreakBlack++;
+      winStreakBlack = 0;
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | STREAK MULTIPLIERS
+    |--------------------------------------------------------------------------
+    */
 
-    
     const winMultWhite =
       getWinMultiplier(winStreakWhite);
 
@@ -296,7 +359,12 @@ router.post("/record-result", async (req, res) => {
     const lossMultBlack =
       getLossMultiplier(lossStreakBlack);
 
-    
+    /*
+    |--------------------------------------------------------------------------
+    | APPLY MULTIPLIERS
+    |--------------------------------------------------------------------------
+    */
+
     if (changeA > 0) {
       changeA = Math.round(
         changeA *
@@ -323,14 +391,37 @@ router.post("/record-result", async (req, res) => {
       );
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | DETERMINE RATING FIELD
+    |--------------------------------------------------------------------------
+    */
+
+    const ratingField = {
+      RAPID: "rapidRating",
+      BLITZ: "blitzRating",
+      BULLET: "bulletRating",
+    }[mode];
+
     const gainField = getGainField(mode);
 
     const now = new Date();
 
+    /*
+    |--------------------------------------------------------------------------
+    | DATABASE TRANSACTION
+    |--------------------------------------------------------------------------
+    */
+
     const transactionResult =
       await prisma.$transaction(async (tx) => {
 
-        // Update white player
+        /*
+        |--------------------------------------------------------------------------
+        | UPDATE WHITE PLAYER
+        |--------------------------------------------------------------------------
+        */
+
         const updatedWhite =
           await tx.player.update({
             where: {
@@ -338,6 +429,14 @@ router.post("/record-result", async (req, res) => {
             },
 
             data: {
+              [ratingField]: {
+                increment: changeA,
+              },
+
+              [gainField]: {
+                increment: changeA,
+              },
+
               totalPoints: {
                 increment: scoreWhite,
               },
@@ -345,14 +444,15 @@ router.post("/record-result", async (req, res) => {
               totalRounds: {
                 increment: 1,
               },
-
-              [gainField]: {
-                increment: changeA,
-              },
             },
           });
 
-        // Update black player
+        /*
+        |--------------------------------------------------------------------------
+        | UPDATE BLACK PLAYER
+        |--------------------------------------------------------------------------
+        */
+
         const updatedBlack =
           await tx.player.update({
             where: {
@@ -360,6 +460,14 @@ router.post("/record-result", async (req, res) => {
             },
 
             data: {
+              [ratingField]: {
+                increment: changeB,
+              },
+
+              [gainField]: {
+                increment: changeB,
+              },
+
               totalPoints: {
                 increment: scoreBlack,
               },
@@ -367,39 +475,53 @@ router.post("/record-result", async (req, res) => {
               totalRounds: {
                 increment: 1,
               },
-
-              [gainField]: {
-                increment: changeB,
-              },
             },
           });
 
-        // Update pairing
-        const updatedPairing =
-          await tx.pairing.update({
-            where: {
-              id: pairing.id,
-            },
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE GAME RESULT
+        |--------------------------------------------------------------------------
+        */
 
+        const gameResult =
+          await tx.gameResult.create({
             data: {
-              result: pairingResult,
+              round,
+              mode,
+
+              whitePlayerId:
+                pairing.whitePlayerId,
+
+              blackPlayerId:
+                pairing.blackPlayerId,
 
               whiteScore: scoreWhite,
               blackScore: scoreBlack,
 
-              whiteChange: changeA,
-              blackChange: changeB,
+              whiteRatingChange: changeA,
+              blackRatingChange: changeB,
 
-              playedAt: now,
+              category: pairing.category,
+
+              date: now,
+
+              pairingId: pairing.id,
             },
 
             include: {
               whitePlayer: true,
               blackPlayer: true,
+              pairing: true,
             },
           });
 
-        // White rating gain history
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE WHITE RATING HISTORY
+        |--------------------------------------------------------------------------
+        */
+
         await tx.ratingGain.create({
           data: {
             playerId: pairing.whitePlayerId,
@@ -414,7 +536,12 @@ router.post("/record-result", async (req, res) => {
           },
         });
 
-        // Black rating gain history
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE BLACK RATING HISTORY
+        |--------------------------------------------------------------------------
+        */
+
         await tx.ratingGain.create({
           data: {
             playerId: pairing.blackPlayerId,
@@ -432,11 +559,16 @@ router.post("/record-result", async (req, res) => {
         return {
           updatedWhite,
           updatedBlack,
-          updatedPairing,
+          gameResult,
         };
       });
 
-    
+    /*
+    |--------------------------------------------------------------------------
+    | RESPONSE
+    |--------------------------------------------------------------------------
+    */
+
     return res.json({
       success: true,
 
@@ -444,34 +576,48 @@ router.post("/record-result", async (req, res) => {
         `Round ${round} result recorded successfully.`,
 
       result: {
-        pairingId: pairing.id,
+        id:
+          transactionResult.gameResult.id,
+
+        pairingId:
+          pairing.id,
 
         round,
 
         mode: mode.toLowerCase(),
 
+        category:
+          pairing.category,
+
         white:
-          transactionResult.updatedPairing.whitePlayer
-            .username,
+          transactionResult.gameResult
+            .whitePlayer.username,
 
         black:
-          transactionResult.updatedPairing.blackPlayer
-            .username,
+          transactionResult.gameResult
+            .blackPlayer.username,
 
-        whiteScore: scoreWhite,
-        blackScore: scoreBlack,
+        whiteScore:
+          scoreWhite,
 
-        whiteChange: changeA,
-        blackChange: changeB,
+        blackScore:
+          scoreBlack,
 
-        result: pairingResult,
+        whiteChange:
+          changeA,
 
-        playedAt: now,
+        blackChange:
+          changeB,
+
+        result:
+          pairingResult,
+
+        playedAt:
+          now,
       },
     });
 
   } catch (error) {
-
     console.error(
       "record-result error:",
       error
@@ -479,7 +625,10 @@ router.post("/record-result", async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Internal server error.",
+      message: "Failed to record result.",
     });
   }
 });
+
+
+module.exports = router
