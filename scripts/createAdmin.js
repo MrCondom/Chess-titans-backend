@@ -1,5 +1,5 @@
 const bcrypt = require("bcryptjs");
-const prisma = require("../lib/prisma");
+const prisma = require("../src/lib/prisma");
 
 
 async function main() {
@@ -85,3 +85,6 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
+
+//node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
+// node scripts/createAdmin.js username "eg"
