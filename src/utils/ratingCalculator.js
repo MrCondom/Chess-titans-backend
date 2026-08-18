@@ -1,5 +1,5 @@
 // utils/ratingCalculator.js
-const rules = require("../config/ratingRules");
+const rules = require("./ratingRules");
 
 function calculateRatingChange(ratingA, ratingB, scoreA, scoreB) {
   const diff = Math.abs(ratingA - ratingB);
