@@ -5,6 +5,8 @@ const dotenv = require("dotenv");
 const playersRoutes = require("./routes/players");
 const teamsRoutes = require("./routes/teams");
 const pairingsRoutes = require("./routes/pairings")
+const adminRoutes = require("./routes/admin")
+const rankingsRoutes = require("./routes/rankings")
 
 dotenv.config();
 
@@ -22,6 +24,8 @@ app.get("/", (req, res) => {
 app.use("/players", playersRoutes);
 app.use("/teams", teamsRoutes);
 app.use("/pairings", pairingsRoutes);
+app.use("/admin", adminRoutes)
+app.use("/rankings", rankingsRoutes)
 
 
 app.listen(PORT, () => {
