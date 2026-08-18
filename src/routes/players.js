@@ -1,109 +1,150 @@
 const express = require("express");
 const router = express.Router();
 
+const bcrypt = require("bcryptjs");
+
 const prisma = require("../lib/prisma");
+const playerAuth = require("../middleware/playerAuth");
+const approvalService = require("../services/approvalService");
+
+const notificationService = require("../services/notificationService")
 
 
-function normalizeUsername(username) {
-  return String(username || "").trim().toLowerCase();
+const playerSelect = {
+  id: true,
+  fullName: true,
+  username: true,
+  status: true,
+
+  category: true,
+  bio: true,
+
+  rapidRating: true,
+  blitzRating: true,
+  bulletRating: true,
+
+  rapidGain: true,
+  blitzGain: true,
+  bulletGain: true,
+
+  totalPoints: true,
+  totalRounds: true,
+
+  currentChampionTitle: true,
+  championshipWins: true,
+
+  teamId: true,
+
+  createdAt: true,
+  updatedAt: true,
+};
+
+
+function getAuthenticatedPlayerId(req) {
+  if (!req.player || req.player.id === undefined || req.player.id === null) {
+    return null;
+  }
+
+  const playerId = Number(req.player.id);
+
+  if (!Number.isInteger(playerId) || playerId <= 0) {
+    return null;
+  }
+
+  return playerId;
 }
 
-function normalizeCategory(category) {
-  const value = String(category || "").trim().toLowerCase();
-  return value;
-}
 
-
-
-router.get("/all", async (req, res) => {
+router.get("/me", playerAuth, async (req, res) => {
   try {
-    const players = await prisma.player.findMany({
-      include: {
-        team: true,
-      },
-      orderBy: [
-        {
-          rapidRating: "desc",
-        },
-        {
-          blitzRating: "desc",
-        },
-        {
-          bulletRating: "desc",
-        },
-        {
-          fullName: "asc",
-        },
-      ],
-    });
+    const playerId = getAuthenticatedPlayerId(req);
 
-    const grouped = {};
-
-    for (const player of players) {
-      const category = normalizeCategory(player.category);
-
-      if (!grouped[category]) {
-        grouped[category] = [];
-      }
-
-      grouped[category].push(player);
+    if (!playerId) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid player authentication.",
+      });
     }
 
-    
+    const player = await prisma.player.findUnique({
+      where: {
+        id: playerId,
+      },
 
-    const categoryOrder = [
-      "heavyweight",
-      "middleweight",
-      "lightweight",
-    ];
-
-    const orderedGrouped = {};
-
-    categoryOrder.forEach((category) => {
-      if (grouped[category]) {
-        orderedGrouped[category] = grouped[category];
-      }
+      select: playerSelect,
     });
 
-    
-    Object.keys(grouped)
-      .filter(
-        (category) =>
-          !categoryOrder.includes(category))
-      .sort()
-      .forEach((category) => {
-        orderedGrouped[category] = grouped[category];
+    if (!player) {
+      return res.status(404).json({
+        success: false,
+        message: "Player account not found.",
       });
+    }
 
-    
+    if (player.status !== "ACTIVE") {
+      return res.status(403).json({
+        success: false,
+        message: "Your player account is inactive.",
+      });
+    }
 
-    res.json(orderedGrouped);
+    return res.status(200).json({
+      success: true,
+      player,
+    });
   } catch (error) {
-    console.error("GET /players/all error:", error);
+    console.error("GET CURRENT PLAYER ERROR:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: "Failed to fetch players.",
+      message: "Failed to retrieve player profile.",
     });
   }
 });
 
 
-router.get("/:username", async (req, res) => {
+router.get("/:id", async (req, res) => {
   try {
-    const username = normalizeUsername(req.params.username);
+    const playerId = Number(req.params.id);
+
+    if (!Number.isInteger(playerId) || playerId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid player ID.",
+      });
+    }
 
     const player = await prisma.player.findUnique({
       where: {
-        username,
+        id: playerId,
       },
-      include: {
-        team: true,
-        rankings: {
-          orderBy: {
-            createdAt: "desc",
-          },
-        },
+
+      select: {
+        id: true,
+        fullName: true,
+        username: true,
+        status: true,
+
+        category: true,
+        bio: true,
+
+        rapidRating: true,
+        blitzRating: true,
+        bulletRating: true,
+
+        rapidGain: true,
+        blitzGain: true,
+        bulletGain: true,
+
+        totalPoints: true,
+        totalRounds: true,
+
+        currentChampionTitle: true,
+        championshipWins: true,
+
+        teamId: true,
+
+        createdAt: true,
       },
     });
 
@@ -114,410 +155,662 @@ router.get("/:username", async (req, res) => {
       });
     }
 
-    res.json({
-      success: true,
-      player,
-    });
-  } catch (error) {
-    console.error("GET player error:", error);
-
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch player.",
-    });
-  }
-});
-
-
-
-router.post("/", async (req, res) => {
-  try {
-    const {
-      fullName,
-      username,
-      rapid,
-      blitz,
-      bullet,
-      category,
-      bio,
-      status,
-    } = req.body;
-
-    const cleanFullName = String(fullName || "").trim();
-    const cleanUsername = normalizeUsername(username);
-    const cleanCategory = normalizeCategory(category);
-    const cleanBio = String(bio || "").trim();
-
-    const rapidRating = Number(rapid);
-    const blitzRating = Number(blitz);
-    const bulletRating = Number(bullet);
-
-    
-
-    if (!cleanFullName) {
-      return res.status(400).json({
-        success: false,
-        message: "Full name is required.",
-      });
-    }
-
-    if (!cleanUsername) {
-      return res.status(400).json({
-        success: false,
-        message: "Username is required.",
-      });
-    }
-
-    if (
-      !Number.isFinite(rapidRating) ||
-      !Number.isFinite(blitzRating) ||
-      !Number.isFinite(bulletRating)
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Rapid, blitz and bullet ratings must be valid numbers.",
-      });
-    }
-
-    
-
-    const existingPlayer = await prisma.player.findUnique({
-      where: {
-        username: cleanUsername,
-      },
-    });
-
-    if (existingPlayer) {
-      return res.status(400).json({
-        success: false,
-        message: "Username already exists.",
-      });
-    }
-
-  
-
-    const player = await prisma.player.create({
-      data: {
-        fullName: cleanFullName,
-        username: cleanUsername,
-
-        rapidRating,
-        blitzRating,
-        bulletRating,
-
-        rapidGain: 0,
-        blitzGain: 0,
-        bulletGain: 0,
-
-        category: cleanCategory,
-
-        bio: cleanBio,
-
-        status:
-          status === "INACTIVE"
-            ? "INACTIVE"
-            : "ACTIVE",
-      },
-      include: {
-        team: true,
-      },
-    });
-
-    res.status(201).json({
-      success: true,
-      message: "Player added successfully.",
-      player,
-    });
-  } catch (error) {
-    console.error("POST /players error:", error);
-
-    res.status(500).json({
-      success: false,
-      message: "Failed to add player.",
-    });
-  }
-});
-
-
-router.put("/:username", async (req, res) => {
-  try {
-    const currentUsername = normalizeUsername(req.params.username);
-
-    const {
-      fullName,
-      username,
-      rapid,
-      blitz,
-      bullet,
-      category,
-      bio,
-      status,
-    } = req.body;
-
-    const existingPlayer = await prisma.player.findUnique({
-      where: {
-        username: currentUsername,
-      },
-    });
-
-    if (!existingPlayer) {
+    if (player.status !== "ACTIVE") {
       return res.status(404).json({
         success: false,
         message: "Player not found.",
       });
     }
 
-    const data = {};
+    return res.status(200).json({
+      success: true,
+      player,
+    });
+  } catch (error) {
+    console.error("GET PUBLIC PLAYER ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retrieve player.",
+    });
+  }
+});
+
+
+
+router.post("/me/bio", playerAuth, async (req, res) => {
+  try {
+    const playerId = getAuthenticatedPlayerId(req);
+
+    if (!playerId) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid player authentication.",
+      });
+    }
+
+    const player = await prisma.player.findUnique({
+      where: {
+        id: playerId,
+      },
+
+      select: {
+        id: true,
+        status: true,
+        bio: true,
+      },
+    });
+
+    if (!player) {
+      return res.status(404).json({
+        success: false,
+        message: "Player account not found.",
+      });
+    }
+
+    if (player.status !== "ACTIVE") {
+      return res.status(403).json({
+        success: false,
+        message: "Your player account is inactive.",
+      });
+    }
+
+    const { bio } = req.body;
+
+    if (typeof bio !== "string") {
+      return res.status(400).json({
+        success: false,
+        message: "Bio must be a string.",
+      });
+    }
+
+    const cleanBio = bio.trim();
+
+    if (cleanBio.length > 1000) {
+      return res.status(400).json({
+        success: false,
+        message: "Bio cannot exceed 1000 characters.",
+      });
+    }
+
+    if (cleanBio === player.bio) {
+      return res.status(400).json({
+        success: false,
+        message: "Your new bio is the same as your current bio.",
+      });
+    }
+
+    const existingRequest =
+      await prisma.approvalRequest.findFirst({
+        where: {
+          playerId,
+          type: "BIO_CHANGE",
+          status: "PENDING",
+        },
+      });
+
+    if (existingRequest) {
+      return res.status(409).json({
+        success: false,
+        message: "You already have a pending bio change request.",
+      });
+    }
+
+    const result = await approvalService.createRequest(
+      playerId,
+      "BIO_CHANGE",
+      {
+        bio: cleanBio,
+      }
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: "Bio change submitted for administrator approval.",
+      approval: result,
+    });
+  } catch (error) {
+    console.error("SUBMIT BIO CHANGE ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to submit bio change request.",
+    });
+  }
+});
+
+
+router.post("/me/username", playerAuth, async (req, res) => {
+  try {
+    const playerId = getAuthenticatedPlayerId(req);
+
+    if (!playerId) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid player authentication.",
+      });
+    }
+
+    const player = await prisma.player.findUnique({
+      where: {
+        id: playerId,
+      },
+
+      select: {
+        id: true,
+        username: true,
+        status: true,
+      },
+    });
+
+    if (!player) {
+      return res.status(404).json({
+        success: false,
+        message: "Player account not found.",
+      });
+    }
+
+    if (player.status !== "ACTIVE") {
+      return res.status(403).json({
+        success: false,
+        message: "Your player account is inactive.",
+      });
+    }
+
+    const { username } = req.body;
+
+    if (typeof username !== "string") {
+      return res.status(400).json({
+        success: false,
+        message: "Username must be a string.",
+      });
+    }
+
+    const cleanUsername = username.trim();
+
+    if (cleanUsername.length < 3 || cleanUsername.length > 30) {
+      return res.status(400).json({
+        success: false,
+        message: "Username must be between 3 and 30 characters.",
+      });
+    }
+
+    /*
+     * Keep usernames predictable and safe.
+     */
+    if (!/^[a-zA-Z0-9_]+$/.test(cleanUsername)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Username may contain only letters, numbers, and underscores.",
+      });
+    }
+
+    if (
+      cleanUsername.toLowerCase() ===
+      player.username.toLowerCase()
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "The new username is the same as your current username.",
+      });
+    }
 
     
+    const existingPlayer = await prisma.player.findUnique({
+      where: {
+        username: cleanUsername,
+      },
+
+      select: {
+        id: true,
+      },
+    });
+
+    if (existingPlayer && existingPlayer.id !== playerId) {
+      return res.status(409).json({
+        success: false,
+        message: "That username is already in use.",
+      });
+    }
+
+    const existingRequest =
+      await prisma.approvalRequest.findFirst({
+        where: {
+          playerId,
+          type: "USERNAME_CHANGE",
+          status: "PENDING",
+        },
+      });
+
+    if (existingRequest) {
+      return res.status(409).json({
+        success: false,
+        message: "You already have a pending username change request.",
+      });
+    }
+
+    const result = await approvalService.createRequest(
+      playerId,
+      "USERNAME_CHANGE",
+      {
+        username: cleanUsername,
+      }
+    );
+
+    return res.status(201).json({
+      success: true,
+      message:
+        "Username change submitted for administrator approval.",
+      approval: result,
+    });
+  } catch (error) {
+    console.error("SUBMIT USERNAME CHANGE ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to submit username change request.",
+    });
+  }
+});
+
+
+router.post("/me/profile", playerAuth, async (req, res) => {
+  try {
+    const playerId = getAuthenticatedPlayerId(req);
+
+    if (!playerId) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid player authentication.",
+      });
+    }
+
+    const player = await prisma.player.findUnique({
+      where: {
+        id: playerId,
+      },
+
+      select: {
+        id: true,
+        fullName: true,
+        category: true,
+        status: true,
+      },
+    });
+
+    if (!player) {
+      return res.status(404).json({
+        success: false,
+        message: "Player account not found.",
+      });
+    }
+
+    if (player.status !== "ACTIVE") {
+      return res.status(403).json({
+        success: false,
+        message: "Your player account is inactive.",
+      });
+    }
+
+    const { fullName, category } = req.body;
+
+    const data = {};
 
     if (fullName !== undefined) {
-      const cleanFullName = String(fullName).trim();
-
-      if (!cleanFullName) {
+      if (typeof fullName !== "string") {
         return res.status(400).json({
           success: false,
-          message: "Full name cannot be empty.",
+          message: "Full name must be a string.",
+        });
+      }
+
+      const cleanFullName = fullName.trim();
+
+      if (
+        cleanFullName.length < 2 ||
+        cleanFullName.length > 100
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Full name must be between 2 and 100 characters.",
         });
       }
 
       data.fullName = cleanFullName;
     }
 
-
-    if (username !== undefined) {
-      const newUsername = normalizeUsername(username);
-
-      if (!newUsername) {
-        return res.status(400).json({
-          success: false,
-          message: "Username cannot be empty.",
-        });
-      }
-
-      if (newUsername !== currentUsername) {
-        const usernameExists = await prisma.player.findUnique({
-          where: {
-            username: newUsername,
-          },
-        });
-
-        if (usernameExists) {
-          return res.status(400).json({
-            success: false,
-            message: "Username already exists.",
-          });
-        }
-
-        data.username = newUsername;
-      }
-    }
-
-
-    if (rapid !== undefined) {
-      const value = Number(rapid);
-
-      if (!Number.isFinite(value)) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid rapid rating.",
-        });
-      }
-
-      data.rapidRating = value;
-    }
-
-    if (blitz !== undefined) {
-      const value = Number(blitz);
-
-      if (!Number.isFinite(value)) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid blitz rating.",
-        });
-      }
-
-      data.blitzRating = value;
-    }
-
-    if (bullet !== undefined) {
-      const value = Number(bullet);
-
-      if (!Number.isFinite(value)) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid bullet rating.",
-        });
-      }
-
-      data.bulletRating = value;
-    }
-
-
     if (category !== undefined) {
-      data.category = normalizeCategory(category);
-    }
-
-
-    if (bio !== undefined) {
-      data.bio = String(bio).trim();
-    }
-
-
-    if (status !== undefined) {
-      if (!["ACTIVE", "INACTIVE"].includes(status)) {
+      if (typeof category !== "string") {
         return res.status(400).json({
           success: false,
-          message: "Invalid player status.",
+          message: "Category must be a string.",
         });
       }
 
-      data.status = status;
+      const cleanCategory = category.trim();
+
+      if (cleanCategory.length > 100) {
+        return res.status(400).json({
+          success: false,
+          message: "Category cannot exceed 100 characters.",
+        });
+      }
+
+      data.category = cleanCategory;
     }
 
-   
-    const player = await prisma.player.update({
-      where: {
-        username: currentUsername,
-      },
-      data,
-      include: {
-        team: true,
-      },
-    });
-
-    res.json({
-      success: true,
-      message: "Player updated successfully.",
-      player,
-    });
-  } catch (error) {
-    console.error("PUT /players/:username error:", error);
-
-    res.status(500).json({
-      success: false,
-      message: "Failed to update player.",
-    });
-  }
-});
-
-
-router.patch("/:username/status", async (req, res) => {
-  try {
-    const username = normalizeUsername(req.params.username);
-    const { status } = req.body;
-
-    if (!["ACTIVE", "INACTIVE"].includes(status)) {
+    if (Object.keys(data).length === 0) {
       return res.status(400).json({
         success: false,
-        message: "Status must be ACTIVE or INACTIVE.",
+        message: "No profile changes were submitted.",
       });
     }
 
-    const player = await prisma.player.update({
-      where: {
-        username,
-      },
-      data: {
-        status,
-      },
-    });
+    if (
+      data.fullName !== undefined &&
+      data.fullName === player.fullName &&
+      data.category !== undefined &&
+      data.category === player.category
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "No changes were detected.",
+      });
+    }
 
-    res.json({
+    const existingRequest =
+      await prisma.approvalRequest.findFirst({
+        where: {
+          playerId,
+          type: "PROFILE_CHANGE",
+          status: "PENDING",
+        },
+      });
+
+    if (existingRequest) {
+      return res.status(409).json({
+        success: false,
+        message: "You already have a pending profile change request.",
+      });
+    }
+
+    const result = await approvalService.createRequest(
+      playerId,
+      "PROFILE_CHANGE",
+      data
+    );
+
+    return res.status(201).json({
       success: true,
-      message: `Player marked as ${status}.`,
-      player,
+      message:
+        "Profile change submitted for administrator approval.",
+      approval: result,
     });
   } catch (error) {
-    console.error("Update player status error:", error);
+    console.error("SUBMIT PROFILE CHANGE ERROR:", error);
 
-    if (error.code === "P2025") {
-      return res.status(404).json({
-        success: false,
-        message: "Player not found.",
-      });
-    }
-
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: "Failed to update player status.",
+      message: "Failed to submit profile change request.",
     });
   }
 });
 
 
-router.patch("/:username/bio", async (req, res) => {
+
+router.post("/me/password", playerAuth, async (req, res) => {
   try {
-    const username = normalizeUsername(req.params.username);
-    const bio = String(req.body.bio || "").trim();
+    const playerId = getAuthenticatedPlayerId(req);
 
-    const player = await prisma.player.update({
-      where: {
-        username,
-      },
-      data: {
-        bio,
-      },
-    });
-
-    res.json({
-      success: true,
-      message: "Bio updated successfully.",
-      player,
-    });
-  } catch (error) {
-    console.error("Update bio error:", error);
-
-    if (error.code === "P2025") {
-      return res.status(404).json({
+    if (!playerId) {
+      return res.status(401).json({
         success: false,
-        message: "Player not found.",
+        message: "Invalid player authentication.",
       });
     }
-
-    res.status(500).json({
-      success: false,
-      message: "Failed to update bio.",
-    });
-  }
-});
-
-
-router.delete("/:username", async (req, res) => {
-  try {
-    const username = normalizeUsername(req.params.username);
 
     const player = await prisma.player.findUnique({
       where: {
-        username,
+        id: playerId,
+      },
+
+      select: {
+        id: true,
+        passwordHash: true,
+        status: true,
       },
     });
 
     if (!player) {
       return res.status(404).json({
         success: false,
-        message: "Player not found.",
+        message: "Player account not found.",
       });
     }
 
-    await prisma.player.delete({
-      where: {
-        username,
-      },
-    });
+    if (player.status !== "ACTIVE") {
+      return res.status(403).json({
+        success: false,
+        message: "Your player account is inactive.",
+      });
+    }
 
-    res.json({
+    const {
+      currentPassword,
+      newPassword,
+    } = req.body;
+
+    if (
+      typeof currentPassword !== "string" ||
+      typeof newPassword !== "string"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Current password and new password are required.",
+      });
+    }
+
+    if (!player.passwordHash) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Password authentication is not available for this account.",
+      });
+    }
+
+    const passwordMatches = await bcrypt.compare(
+      currentPassword,
+      player.passwordHash
+    );
+
+    if (!passwordMatches) {
+      return res.status(401).json({
+        success: false,
+        message: "Current password is incorrect.",
+      });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: "New password must be at least 8 characters.",
+      });
+    }
+
+    if (newPassword.length > 128) {
+      return res.status(400).json({
+        success: false,
+        message: "New password is too long.",
+      });
+    }
+
+    if (currentPassword === newPassword) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "New password must be different from the current password.",
+      });
+    }
+
+    const existingRequest =
+      await prisma.approvalRequest.findFirst({
+        where: {
+          playerId,
+          type: "PASSWORD_CHANGE",
+          status: "PENDING",
+        },
+      });
+
+    if (existingRequest) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "You already have a pending password change request.",
+      });
+    }
+
+   
+    const newPasswordHash = await bcrypt.hash(
+      newPassword,
+      12
+    );
+
+    const result = await approvalService.createRequest(
+      playerId,
+      "PASSWORD_CHANGE",
+      {
+        passwordHash: newPasswordHash,
+      }
+    );
+
+    return res.status(201).json({
       success: true,
-      message: `Player ${username} deleted successfully.`,
+      message:
+        "Password change submitted for administrator approval.",
+      approval: result,
     });
   } catch (error) {
-    console.error("DELETE player error:", error);
+    console.error("SUBMIT PASSWORD CHANGE ERROR:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: "Failed to delete player.",
+      message: "Failed to submit password change request.",
     });
   }
 });
+
+
+router.get("/me/approvals", playerAuth, async (req, res) => {
+  try {
+    const playerId = getAuthenticatedPlayerId(req);
+
+    if (!playerId) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid player authentication.",
+      });
+    }
+
+    const approvals = await prisma.approvalRequest.findMany({
+      where: {
+        playerId,
+      },
+
+      select: {
+        id: true,
+        type: true,
+        status: true,
+        reason: true,
+        reviewedAt: true,
+        createdAt: true,
+      },
+
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      count: approvals.length,
+      approvals,
+    });
+  } catch (error) {
+    console.error("GET PLAYER APPROVALS ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retrieve approval requests.",
+    });
+  }
+});
+
+
+router.get(
+  "/me/approvals/:id",
+  playerAuth,
+  async (req, res) => {
+    try {
+      const playerId = getAuthenticatedPlayerId(req);
+
+      if (!playerId) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid player authentication.",
+        });
+      }
+
+      const approvalId = Number(req.params.id);
+
+      if (!Number.isInteger(approvalId) || approvalId <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid approval request ID.",
+        });
+      }
+
+      const approval =
+        await prisma.approvalRequest.findFirst({
+          where: {
+            id: approvalId,
+            playerId,
+          },
+
+          select: {
+            id: true,
+            type: true,
+            status: true,
+            reason: true,
+            reviewedAt: true,
+            createdAt: true,
+          },
+        });
+
+    if (!approval) {
+        return res.status(404).json({
+          success: false,
+          message: "Approval request not found.",
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        approval,
+      });
+    } catch (error) {
+      console.error(
+        "GET PLAYER APPROVAL ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message: "Failed to retrieve approval request.",
+      });
+    }
+  }
+);
 
 module.exports = router;

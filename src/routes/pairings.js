@@ -1,468 +1,259 @@
 const express = require("express");
-
 const router = express.Router();
 
 const prisma = require("../lib/prisma");
-const { generatePairings } = require("../utils/pairingGenerator");
 
-const VALID_MODES = ["RAPID", "BLITZ", "BULLET"];
+const adminAuth = require("../middleware/adminAuth");
+const playerAuth = require("../middleware/playerAuth");
 
-function normalize(value) {
-  return String(value || "").trim().toLowerCase();
-}
-
-function normalizeMode(mode) {
-  const value = String(mode || "rapid").trim().toUpperCase();
-
-  if (!VALID_MODES.includes(value)) {
-    return null;
-  }
-
-  return value;
-}
+const pairingService = require("../services/pairingService");
 
 
-router.post("/create", async (req, res) => {
+router.post("/generate", adminAuth, async (req, res) => {
   try {
-    let {
+    const {
       category,
-      rounds,
-      intervalHours = 2,
-      mode = "rapid",
+      round,
+      mode,
+      availableAt,
     } = req.body;
 
-    category = normalize(category);
-    mode = normalizeMode(mode);
+    const parsedRound = Number(round);
 
-    if (!category) {
-      return res.status(400).json({
-        success: false,
-        message: "Category is required.",
-      });
-    }
+    let parsedAvailableAt;
 
-    if (!mode) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid mode. Use rapid, blitz or bullet.",
-      });
-    }
+    if (availableAt !== undefined) {
+      parsedAvailableAt = new Date(availableAt);
 
-    if (rounds !== undefined) {
-      rounds = Number(rounds);
-
-      if (!Number.isInteger(rounds) || rounds < 1) {
+      if (Number.isNaN(parsedAvailableAt.getTime())) {
         return res.status(400).json({
           success: false,
-          message: "Rounds must be a positive integer.",
+          message: "Invalid availableAt date.",
         });
       }
     } else {
-      rounds = 5;
+      parsedAvailableAt = new Date();
     }
 
-    intervalHours = Number(intervalHours);
-
-    if (!Number.isFinite(intervalHours) || intervalHours < 0) {
-      return res.status(400).json({
-        success: false,
-        message: "intervalHours must be a valid non-negative number.",
-      });
-    }
-
-    // Get active players in category
-    const players = await prisma.player.findMany({
-      where: {
+    const result =
+      await pairingService.generatePairings({
         category,
-        status: "ACTIVE",
-      },
-      orderBy: {
-        id: "asc",
-      },
-    });
-
-    if (players.length < 2) {
-      return res.status(400).json({
-        success: false,
-        message: "At least two active players are required.",
-      });
-    }
-
-    const existingPairings = await prisma.pairing.findFirst({
-      where: {
-        category,
+        round: parsedRound,
         mode,
-      },
-    });
-    
-    if (existingPairings) {
-      return res.status(400).json({
-        success: false,
-        message: `Pairings already exist for ${category} in ${mode.toLowerCase()} mode. Delete them first before creating new pairings.`,
+        availableAt: parsedAvailableAt,
       });
-    }
 
-    // Generate pairings
-    const generated = generatePairings(players, rounds);
-
-    if (!generated.length) {
-      return res.status(400).json({
-        success: false,
-        message: "Unable to generate pairings.",
-      });
-    }
-
-    const now = new Date();
-
-    const pairingRecords = generated.map((pairing) => {
-      const availableAt = new Date(
-        now.getTime() +
-          (pairing.round - 1) * intervalHours * 60 * 60 * 1000
-      );
-
-      return {
-        category,
-        round: pairing.round,
-        mode,
-
-        whitePlayerId: pairing.whitePlayerId,
-        blackPlayerId: pairing.blackPlayerId,
-
-        result: "PENDING",
-
-        whiteScore: 0,
-        blackScore: 0,
-
-        whiteChange: 0,
-        blackChange: 0,
-
-        availableAt,
-      };
+    return res.status(201).json({
+      success: true,
+      message: "Pairings generated successfully.",
+      ...result,
     });
-
-    // Create all pairings in one transaction
-    await prisma.$transaction(
-      pairingRecords.map((pairing) =>
-        prisma.pairing.create({
-          data: pairing,
-        })
-      )
+  } catch (error) {
+    console.error(
+      "GENERATE PAIRINGS ERROR:",
+      error
     );
 
-    const created = await prisma.pairing.findMany({
-      where: {
-        category,
-        mode,
-        createdAt: {
-          gte: now,
-        },
-      },
-      include: {
-        whitePlayer: {
-          select: {
-            id: true,
-            fullName: true,
-            username: true,
-            category: true,
-          },
-        },
-        blackPlayer: {
-          select: {
-            id: true,
-            fullName: true,
-            username: true,
-            category: true,
-          },
-        },
-      },
-      orderBy: [
-        {
-          round: "asc",
-        },
-        {
-          id: "asc",
-        },
-      ],
-    });
-
-    return res.json({
-      success: true,
-      message: `Pairings created successfully for ${category}.`,
-      category,
-      mode: mode.toLowerCase(),
-      rounds,
-      intervalHours,
-      pairings: created,
-    });
-  } catch (error) {
-    console.error("create pairings error:", error);
-
-    return res.status(500).json({
+    return res.status(400).json({
       success: false,
-      message: "Failed to create pairings.",
-    });
-  }
-});
-
-router.get("/current/:category", async (req, res) => {
-  try {
-    const category = normalize(req.params.category);
-
-    const mode = normalizeMode(req.query.mode || "rapid");
-
-    if (!mode) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid mode.",
-      });
-    }
-
-    const pairings = await prisma.pairing.findMany({
-      where: {
-        category,
-        mode,
-      },
-
-      include: {
-        whitePlayer: {
-          select: {
-            id: true,
-            fullName: true,
-            username: true,
-            category: true,
-          },
-        },
-
-        blackPlayer: {
-          select: {
-            id: true,
-            fullName: true,
-            username: true,
-            category: true,
-          },
-        },
-      },
-
-      orderBy: [
-        {
-          round: "asc",
-        },
-        {
-          id: "asc",
-        },
-      ],
-    });
-
-    const now = Date.now();
-
-    const visibleRounds = [];
-
-    let nextRoundAt = null;
-
-    const grouped = {};
-
-    for (const pairing of pairings) {
-      if (!grouped[pairing.round]) {
-        grouped[pairing.round] = {
-          round: pairing.round,
-          availableAt: pairing.availableAt,
-          pairings: [],
-        };
-      }
-
-      grouped[pairing.round].pairings.push(pairing);
-    }
-
-    const rounds = Object.values(grouped);
-
-    for (const round of rounds) {
-      const available =
-        round.availableAt &&
-        new Date(round.availableAt).getTime();
-
-      if (!available || available <= now) {
-        visibleRounds.push(round);
-      } else if (!nextRoundAt) {
-        nextRoundAt = round.availableAt;
-      }
-    }
-
-    return res.json({
-      success: true,
-      category,
-      mode: mode.toLowerCase(),
-      visibleRounds,
-      nextRoundAt,
-    });
-  } catch (error) {
-    console.error("get pairings error:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: "Failed to load pairings.",
+      message: error.message ||
+        "Failed to generate pairings.",
     });
   }
 });
 
 
-router.get("/current", async (req, res) => {
+router.get("/", playerAuth, async (req, res) => {
   try {
-    const mode = normalizeMode(req.query.mode || "rapid");
+    const {
+      category,
+      round,
+      mode,
+    } = req.query;
 
-    if (!mode) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid mode.",
-      });
+    let parsedRound;
+
+    if (round !== undefined) {
+      parsedRound = Number(round);
+
+      if (
+        !Number.isInteger(parsedRound) ||
+        parsedRound <= 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid round.",
+        });
+      }
     }
 
-    const pairings = await prisma.pairing.findMany({
-      where: {
+    const pairings =
+      await pairingService.getAllPairings({
+        category,
+        round: parsedRound,
         mode,
-      },
-
-      include: {
-        whitePlayer: {
-          select: {
-            id: true,
-            fullName: true,
-            username: true,
-            category: true,
-          },
-        },
-
-        blackPlayer: {
-          select: {
-            id: true,
-            fullName: true,
-            username: true,
-            category: true,
-          },
-        },
-      },
-
-      orderBy: [
-        {
-          category: "asc",
-        },
-        {
-          round: "asc",
-        },
-        {
-          id: "asc",
-        },
-      ],
-    });
-
-    const now = Date.now();
-
-    const result = {};
-
-    for (const pairing of pairings) {
-      if (!result[pairing.category]) {
-        result[pairing.category] = {};
-      }
-
-      if (!result[pairing.category][pairing.round]) {
-        result[pairing.category][pairing.round] = {
-          round: pairing.round,
-          availableAt: pairing.availableAt,
-          pairings: [],
-        };
-      }
-
-      result[pairing.category][pairing.round].pairings.push(pairing);
-    }
-
-    const formatted = {};
-
-    for (const [category, roundData] of Object.entries(result)) {
-      const rounds = Object.values(roundData);
-
-      const visibleRounds = rounds.filter((round) => {
-        if (!round.availableAt) return true;
-
-        return new Date(round.availableAt).getTime() <= now;
       });
 
-      const nextRound = rounds.find(
-        (round) =>
-          round.availableAt &&
-          new Date(round.availableAt).getTime() > now
+    return res.status(200).json({
+      success: true,
+      count: pairings.length,
+      pairings,
+    });
+  } catch (error) {
+    console.error(
+      "GET ALL PAIRINGS ERROR:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retrieve pairings.",
+    });
+  }
+});
+
+
+router.get("/my", playerAuth, async (req, res) => {
+  try {
+    if (!req.player || !req.player.id) {
+      return res.status(401).json({
+        success: false,
+        message: "Player authentication required.",
+      });
+    }
+
+    const playerId = Number(req.player.id);
+
+    if (!Number.isInteger(playerId) || playerId <= 0) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid player session.",
+      });
+    }
+
+    const {
+      category,
+      round,
+      mode,
+    } = req.query;
+
+    let parsedRound;
+
+    if (round !== undefined) {
+      parsedRound = Number(round);
+
+      if (
+        !Number.isInteger(parsedRound) ||
+        parsedRound <= 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid round.",
+        });
+      }
+    }
+
+    const pairings =
+      await pairingService.getPlayerPairings(
+        playerId,
+        {
+          category,
+          round: parsedRound,
+          mode,
+        }
       );
 
-      formatted[category] = {
-        visibleRounds,
-        nextRoundAt: nextRound?.availableAt || null,
-      };
-    }
-
-    return res.json({
+    return res.status(200).json({
       success: true,
-      mode: mode.toLowerCase(),
-      data: formatted,
+      count: pairings.length,
+      pairings,
     });
   } catch (error) {
-    console.error("get all pairings error:", error);
+    console.error(
+      "GET MY PAIRINGS ERROR:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
-      message: "Failed to load pairings.",
+      message: "Failed to retrieve your pairings.",
     });
   }
 });
 
 
-
-//Delete pairings 
-router.delete("/:category", async (req, res) => {
+router.get("/:id", playerAuth, async (req, res) => {
   try {
-    const category = normalize(req.params.category);
+    if (!req.player || !req.player.id) {
+      return res.status(401).json({
+        success: false,
+        message: "Player authentication required.",
+      });
+    }
 
-    const mode = normalizeMode(req.query.mode || "rapid");
+    const pairingId = Number(req.params.id);
+    const playerId = Number(req.player.id);
 
-    if (!mode) {
+    if (
+      !Number.isInteger(pairingId) ||
+      pairingId <= 0
+    ) {
       return res.status(400).json({
         success: false,
-        message: "Invalid mode.",
+        message: "Invalid pairing ID.",
       });
     }
 
-    const existing = await prisma.pairing.count({
-      where: {
-        category,
-        mode,
-      },
-    });
+    if (
+      !Number.isInteger(playerId) ||
+      playerId <= 0
+    ) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid player session.",
+      });
+    }
 
-    if (!existing) {
+    const pairing =
+      await pairingService.getPairingById(
+        pairingId
+      );
+
+    if (!pairing) {
       return res.status(404).json({
         success: false,
-        message: `No pairings found for ${category}.`,
+        message: "Pairing not found.",
       });
     }
 
-    await prisma.pairing.deleteMany({
-      where: {
-        category,
-        mode,
-      },
-    });
+    const isParticipant =
+      pairing.whitePlayerId === playerId ||
+      pairing.blackPlayerId === playerId;
 
-    return res.json({
+    if (!isParticipant) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "You are not authorized to view this pairing.",
+      });
+    }
+
+    return res.status(200).json({
       success: true,
-      message: `Pairings deleted successfully for ${category}.`,
-      category,
-      mode: mode.toLowerCase(),
+      pairing,
     });
   } catch (error) {
-    console.error("delete pairings error:", error);
+    console.error(
+      "GET SINGLE PAIRING ERROR:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
-      message: "Failed to delete pairings.",
+      message: "Failed to retrieve pairing.",
     });
   }
 });
+
 
 module.exports = router;
