@@ -5,6 +5,12 @@ const {
   calculateRatingChange,
 } = require("../utils/ratingCalculator");
 
+const { getResultPoints } = require("../utils/rankingsCalculator");
+
+const { getWinStreak, getLossStreak, getWinMultiplier, getLossMultiplier
+} = require("../utils/streak");
+
+
 
 function getPlayerRating(player, mode) {
   switch (mode) {

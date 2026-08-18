@@ -1,577 +1,545 @@
 const express = require("express");
+
+const teamService = require("../services/teamService");
+
+const playerAuth = require("../middleware/playerAuth");
+const adminAuth = require("../middleware/adminAuth");
+const teamService = require("../services/teamService");
+
 const router = express.Router();
 
-const prisma = require("../lib/prisma");
-
-function normalizeName(value) {
-  return String(value || "").trim();
-}
-
-function normalizeUsername(value) {
-  return String(value || "").trim().toLowerCase();
-}
-
-
-router.post("/", async (req, res) => {
-  try {
-    const name = normalizeName(req.body.name);
-    const description = normalizeName(req.body.description);
-
-    if (!name) {
-      return res.status(400).json({
-        success: false,
-        message: "Team name is required.",
-      });
-    }
-
-    const existingTeam = await prisma.team.findUnique({
-      where: {
-        name,
-      },
-    });
-
-    if (existingTeam) {
-      return res.status(400).json({
-        success: false,
-        message: "A team with this name already exists.",
-      });
-    }
-
-    const team = await prisma.team.create({
-      data: {
-        name,
-        description,
-      },
-      include: {
-        players: true,
-      },
-    });
-
-    res.status(201).json({
-      success: true,
-      message: "Team created successfully.",
-      team,
-    });
-  } catch (error) {
-    console.error("Create team error:", error);
-
-    res.status(500).json({
-      success: false,
-      message: "Failed to create team.",
-    });
-  }
-});
 
 
 router.get("/", async (req, res) => {
   try {
-    const teams = await prisma.team.findMany({
-      include: {
-        players: {
-          orderBy: {
-            fullName: "asc",
-          },
-        },
-      },
-      orderBy: {
-        name: "asc",
-      },
+    const result = await teamService.getAllTeams({
+      page: req.query.page,
+      limit: req.query.limit,
+      search: req.query.search,
     });
 
-    res.json({
+    return res.json({
       success: true,
-      teams,
+      ...result,
     });
   } catch (error) {
-    console.error("Get teams error:", error);
+    console.error("GET TEAMS ERROR:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: "Failed to fetch teams.",
+      message: error.message,
+      code: error.code || "GET_TEAMS_FAILED",
     });
   }
 });
 
 
-router.get("/:id", async (req, res) => {
+router.get("/:teamId", async (req, res) => {
   try {
-    const teamId = Number(req.params.id);
+    const team = await teamService.getTeamById(
+      req.params.teamId
+    );
 
-    if (!Number.isInteger(teamId)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid team ID.",
-      });
-    }
-
-    const team = await prisma.team.findUnique({
-      where: {
-        id: teamId,
-      },
-      include: {
-        players: {
-          orderBy: {
-            fullName: "asc",
-          },
-        },
-
-        teamPairingsAsTeamA: {
-          include: {
-            teamA: true,
-            teamB: true,
-          },
-          orderBy: {
-            round: "asc",
-          },
-        },
-
-        teamPairingsAsTeamB: {
-          include: {
-            teamA: true,
-            teamB: true,
-          },
-          orderBy: {
-            round: "asc",
-          },
-        },
-
-        rankings: {
-          orderBy: {
-            createdAt: "desc",
-          },
-        },
-      },
-    });
-
-    if (!team) {
-      return res.status(404).json({
-        success: false,
-        message: "Team not found.",
-      });
-    }
-
-    res.json({
+    return res.json({
       success: true,
       team,
     });
   } catch (error) {
-    console.error("Get team error:", error);
+    console.error("GET TEAM ERROR:", error);
 
-    res.status(500).json({
+    const status =
+      error.code === "TEAM_NOT_FOUND"
+        ? 404
+        : 400;
+
+    return res.status(status).json({
       success: false,
-      message: "Failed to fetch team.",
+      message: error.message,
+      code: error.code || "GET_TEAM_FAILED",
     });
   }
 });
 
 
-router.put("/:id", async (req, res) => {
-  try {
-    const teamId = Number(req.params.id);
+router.post(
+  "/",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const {
+        name,
+        description,
+        captainId,
+      } = req.body;
 
-    if (!Number.isInteger(teamId)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid team ID.",
-      });
-    }
-
-    const team = await prisma.team.findUnique({
-      where: {
-        id: teamId,
-      },
-    });
-
-    if (!team) {
-      return res.status(404).json({
-        success: false,
-        message: "Team not found.",
-      });
-    }
-
-    const data = {};
-
-    if (req.body.name !== undefined) {
-      const name = normalizeName(req.body.name);
-
-      if (!name) {
-        return res.status(400).json({
-          success: false,
-          message: "Team name cannot be empty.",
-        });
-      }
-
-      if (name !== team.name) {
-        const duplicate = await prisma.team.findUnique({
-          where: {
-            name,
-          },
+      const team =
+        await teamService.createTeam({
+          name,
+          description,
+          captainId,
         });
 
-        if (duplicate) {
-          return res.status(400).json({
-            success: false,
-            message: "A team with this name already exists.",
-          });
-        }
+      return res.status(201).json({
+        success: true,
+        message: "Team created successfully.",
+        team,
+      });
+    } catch (error) {
+      console.error("CREATE TEAM ERROR:", error);
+
+      const status =
+        error.code === "TEAM_NAME_EXISTS"
+          ? 409
+          : error.code === "PLAYER_NOT_FOUND"
+          ? 404
+          : 400;
+
+      return res.status(status).json({
+        success: false,
+        message: error.message,
+        code: error.code || "CREATE_TEAM_FAILED",
+      });
+    }
+  }
+);
+
+
+router.patch(
+  "/:teamId",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const team =
+        await teamService.updateTeam(
+          req.params.teamId,
+          {
+            name: req.body.name,
+            description: req.body.description,
+          }
+        );
+
+      return res.json({
+        success: true,
+        message: "Team updated successfully.",
+        team,
+      });
+    } catch (error) {
+      console.error("UPDATE TEAM ERROR:", error);
+
+      const status =
+        error.code === "TEAM_NOT_FOUND"
+          ? 404
+          : error.code === "TEAM_NAME_EXISTS"
+          ? 409
+          : 400;
+
+      return res.status(status).json({
+        success: false,
+        message: error.message,
+        code: error.code || "UPDATE_TEAM_FAILED",
+      });
+    }
+  }
+);
+
+
+router.delete(
+  "/:teamId",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const result =
+        await teamService.deleteTeam(
+          req.params.teamId
+        );
+
+      return res.json(result);
+    } catch (error) {
+      console.error("DELETE TEAM ERROR:", error);
+
+      const status =
+        error.code === "TEAM_NOT_FOUND"
+          ? 404
+          : 400;
+
+      return res.status(status).json({
+        success: false,
+        message: error.message,
+        code: error.code || "DELETE_TEAM_FAILED",
+      });
+    }
+  }
+);
+
+
+
+router.post(
+  "/:teamId/members",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const team =
+        await teamService.addPlayerToTeam(
+          req.params.teamId,
+          req.body.playerId
+        );
+
+      return res.status(201).json({
+        success: true,
+        message: "Player added to team successfully.",
+        team,
+      });
+    } catch (error) {
+      console.error(
+        "ADD TEAM MEMBER ERROR:",
+        error
+      );
+
+      let status = 400;
+
+      if (
+        error.code === "TEAM_NOT_FOUND" ||
+        error.code === "PLAYER_NOT_FOUND"
+      ) {
+        status = 404;
       }
 
-      data.name = name;
+      if (
+        error.code === "PLAYER_ALREADY_IN_TEAM" ||
+        error.code === "ALREADY_TEAM_MEMBER"
+      ) {
+        status = 409;
+      }
+
+      return res.status(status).json({
+        success: false,
+        message: error.message,
+        code:
+          error.code ||
+          "ADD_TEAM_MEMBER_FAILED",
+      });
     }
-
-    if (req.body.description !== undefined) {
-      data.description = normalizeName(req.body.description);
-    }
-
-    const updatedTeam = await prisma.team.update({
-      where: {
-        id: teamId,
-      },
-      data,
-      include: {
-        players: true,
-      },
-    });
-
-    res.json({
-      success: true,
-      message: "Team updated successfully.",
-      team: updatedTeam,
-    });
-  } catch (error) {
-    console.error("Edit team error:", error);
-
-    res.status(500).json({
-      success: false,
-      message: "Failed to update team.",
-    });
   }
-});
+);
 
 
-router.post("/:id/players", async (req, res) => {
-  try {
-    const teamId = Number(req.params.id);
-    const username = normalizeUsername(req.body.username);
+router.delete(
+  "/:teamId/members/:playerId",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const team =
+        await teamService.removePlayerFromTeam(
+          req.params.teamId,
+          req.params.playerId
+        );
 
-    if (!Number.isInteger(teamId)) {
-      return res.status(400).json({
+      return res.json({
+        success: true,
+        message: "Player removed from team successfully.",
+        team,
+      });
+    } catch (error) {
+      console.error(
+        "REMOVE TEAM MEMBER ERROR:",
+        error
+      );
+
+      const status =
+        error.code === "TEAM_NOT_FOUND" ||
+        error.code === "PLAYER_NOT_FOUND"
+          ? 404
+          : 400;
+
+      return res.status(status).json({
         success: false,
-        message: "Invalid team ID.",
+        message: error.message,
+        code:
+          error.code ||
+          "REMOVE_TEAM_MEMBER_FAILED",
       });
     }
-
-    if (!username) {
-      return res.status(400).json({
-        success: false,
-        message: "Username is required.",
-      });
-    }
-
-    const team = await prisma.team.findUnique({
-      where: {
-        id: teamId,
-      },
-    });
-
-    if (!team) {
-      return res.status(404).json({
-        success: false,
-        message: "Team not found.",
-      });
-    }
-
-    const player = await prisma.player.findUnique({
-      where: {
-        username,
-      },
-      include: {
-        team: true,
-      },
-    });
-
-    if (!player) {
-      return res.status(404).json({
-        success: false,
-        message: "Player not found.",
-      });
-    }
-
-
-    if (player.teamId && player.teamId !== teamId) {
-      return res.status(400).json({
-        success: false,
-        message: `Player already belongs to team "${player.team.name}".`,
-      });
-    }
-
-    if (player.teamId === teamId) {
-      return res.status(400).json({
-        success: false,
-        message: "Player is already in this team.",
-      });
-    }
-
-    const updatedPlayer = await prisma.player.update({
-      where: {
-        id: player.id,
-      },
-      data: {
-        teamId,
-      },
-      include: {
-        team: true,
-      },
-    });
-
-    res.json({
-      success: true,
-      message: `${player.username} added to ${team.name}.`,
-      player: updatedPlayer,
-    });
-  } catch (error) {
-    console.error("Add player to team error:", error);
-
-    res.status(500).json({
-      success: false,
-      message: "Failed to add player to team.",
-    });
   }
-});
+);
 
 
-router.delete("/:id/players/:username", async (req, res) => {
-  try {
-    const teamId = Number(req.params.id);
-    const username = normalizeUsername(req.params.username);
+/*
+ * GET /teams/:teamId/memberships
+ *
+ * Membership history.
+ */
+router.get(
+  "/:teamId/memberships",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const result =
+        await teamService.getTeamMemberships(
+          req.params.teamId,
+          {
+            status: req.query.status,
+            page: req.query.page,
+            limit: req.query.limit,
+          }
+        );
 
-    if (!Number.isInteger(teamId)) {
-      return res.status(400).json({
+      return res.json({
+        success: true,
+        ...result,
+      });
+    } catch (error) {
+      console.error(
+        "GET TEAM MEMBERSHIPS ERROR:",
+        error
+      );
+
+      const status =
+        error.code === "TEAM_NOT_FOUND"
+          ? 404
+          : 400;
+
+      return res.status(status).json({
         success: false,
-        message: "Invalid team ID.",
+        message: error.message,
+        code:
+          error.code ||
+          "GET_TEAM_MEMBERSHIPS_FAILED",
       });
     }
-
-    const player = await prisma.player.findUnique({
-      where: {
-        username,
-      },
-    });
-
-    if (!player) {
-      return res.status(404).json({
-        success: false,
-        message: "Player not found.",
-      });
-    }
-
-    if (player.teamId !== teamId) {
-      return res.status(400).json({
-        success: false,
-        message: "Player does not belong to this team.",
-      });
-    }
-
-    const updatedPlayer = await prisma.player.update({
-      where: {
-        id: player.id,
-      },
-      data: {
-        teamId: null,
-      },
-    });
-
-    res.json({
-      success: true,
-      message: `${username} removed from team.`,
-      player: updatedPlayer,
-    });
-  } catch (error) {
-    console.error("Remove player from team error:", error);
-
-    res.status(500).json({
-      success: false,
-      message: "Failed to remove player from team.",
-    });
   }
-});
+);
 
 
-router.patch("/remove-player/:username", async (req, res) => {
-  try {
-    const username = normalizeUsername(req.params.username);
+/*
+|--------------------------------------------------------------------------
+| Captain Management
+|--------------------------------------------------------------------------
+*/
 
-    const player = await prisma.player.findUnique({
-      where: {
-        username,
-      },
-    });
 
-    if (!player) {
-      return res.status(404).json({
+/*
+ * PATCH /teams/:teamId/captain
+ */
+router.patch(
+  "/:teamId/captain",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const team =
+        await teamService.appointCaptain(
+          req.params.teamId,
+          req.body.playerId
+        );
+
+      return res.json({
+        success: true,
+        message: "Team captain updated successfully.",
+        team,
+      });
+    } catch (error) {
+      console.error(
+        "APPOINT CAPTAIN ERROR:",
+        error
+      );
+
+      const status =
+        error.code === "TEAM_NOT_FOUND" ||
+        error.code === "PLAYER_NOT_FOUND"
+          ? 404
+          : 400;
+
+      return res.status(status).json({
         success: false,
-        message: "Player not found.",
+        message: error.message,
+        code:
+          error.code ||
+          "APPOINT_CAPTAIN_FAILED",
       });
     }
+  }
+);
 
-    if (!player.teamId) {
+
+/*
+|--------------------------------------------------------------------------
+| Player's Own Team
+|--------------------------------------------------------------------------
+*/
+
+
+/*
+ * GET /teams/player/me
+ *
+ * IMPORTANT:
+ * This route must appear before /:teamId.
+ */
+router.get(
+  "/player/me",
+  playerAuth,
+  async (req, res) => {
+    try {
+      const team =
+        await teamService.getPlayerTeam(
+          req.user.id
+        );
+
+      return res.json({
+        success: true,
+        team,
+      });
+    } catch (error) {
+      console.error(
+        "GET PLAYER TEAM ERROR:",
+        error
+      );
+
+      const status =
+        error.code === "PLAYER_NOT_FOUND"
+          ? 404
+          : 400;
+
+      return res.status(status).json({
+        success: false,
+        message: error.message,
+        code:
+          error.code ||
+          "GET_PLAYER_TEAM_FAILED",
+      });
+    }
+  }
+);
+
+
+/*
+|--------------------------------------------------------------------------
+| Team Pairings
+|--------------------------------------------------------------------------
+*/
+
+
+/*
+ * POST /teams/pairings
+ */
+router.post(
+  "/pairings",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const pairing =
+        await teamService.createTeamPairing({
+          round: req.body.round,
+          teamAId: req.body.teamAId,
+          teamBId: req.body.teamBId,
+          availableAt: req.body.availableAt,
+        });
+
+      return res.status(201).json({
+        success: true,
+        message: "Team pairing created successfully.",
+        pairing,
+      });
+    } catch (error) {
+      console.error(
+        "CREATE TEAM PAIRING ERROR:",
+        error
+      );
+
+      const status =
+        error.code === "TEAM_NOT_FOUND"
+          ? 404
+          : error.code === "TEAM_PAIRING_EXISTS"
+          ? 409
+          : 400;
+
+      return res.status(status).json({
+        success: false,
+        message: error.message,
+        code:
+          error.code ||
+          "CREATE_TEAM_PAIRING_FAILED",
+      });
+    }
+  }
+);
+
+
+/*
+ * GET /teams/pairings
+ */
+router.get(
+  "/pairings",
+  playerAuth,
+  async (req, res) => {
+    try {
+      const result =
+        await teamService.getTeamPairings({
+          teamId: req.query.teamId,
+          round: req.query.round,
+          page: req.query.page,
+          limit: req.query.limit,
+        });
+
+      return res.json({
+        success: true,
+        ...result,
+      });
+    } catch (error) {
+      console.error(
+        "GET TEAM PAIRINGS ERROR:",
+        error
+      );
+
       return res.status(400).json({
         success: false,
-        message: "Player does not belong to a team.",
+        message: error.message,
+        code:
+          error.code ||
+          "GET_TEAM_PAIRINGS_FAILED",
       });
     }
-
-    const updatedPlayer = await prisma.player.update({
-      where: {
-        id: player.id,
-      },
-      data: {
-        teamId: null,
-      },
-    });
-
-    res.json({
-      success: true,
-      message: `${username} removed from their team.`,
-      player: updatedPlayer,
-    });
-  } catch (error) {
-    console.error("Remove player error:", error);
-
-    res.status(500).json({
-      success: false,
-      message: "Failed to remove player from team.",
-    });
   }
-});
+);
 
 
-router.delete("/:id", async (req, res) => {
-  try {
-    const teamId = Number(req.params.id);
+/*
+ * GET /teams/pairings/:pairingId
+ */
+router.get(
+  "/pairings/:pairingId",
+  playerAuth,
+  async (req, res) => {
+    try {
+      const pairing =
+        await teamService.getTeamPairingById(
+          req.params.pairingId
+        );
 
-    if (!Number.isInteger(teamId)) {
-      return res.status(400).json({
+      return res.json({
+        success: true,
+        pairing,
+      });
+    } catch (error) {
+      console.error(
+        "GET TEAM PAIRING ERROR:",
+        error
+      );
+
+      const status =
+        error.code ===
+        "TEAM_PAIRING_NOT_FOUND"
+          ? 404
+          : 400;
+
+      return res.status(status).json({
         success: false,
-        message: "Invalid team ID.",
+        message: error.message,
+        code:
+          error.code ||
+          "GET_TEAM_PAIRING_FAILED",
       });
     }
-
-    const team = await prisma.team.findUnique({
-      where: {
-        id: teamId,
-      },
-      include: {
-        players: true,
-      },
-    });
-
-    if (!team) {
-      return res.status(404).json({
-        success: false,
-        message: "Team not found.",
-      });
-    }
-
-
-    await prisma.$transaction(async (tx) => {
-      await tx.player.updateMany({
-        where: {
-          teamId,
-        },
-        data: {
-          teamId: null,
-        },
-      });
-
-      await tx.team.delete({
-        where: {
-          id: teamId,
-        },
-      });
-    });
-
-    res.json({
-      success: true,
-      message: `Team "${team.name}" deleted successfully.`,
-    });
-  } catch (error) {
-    console.error("Delete team error:", error);
-
-    res.status(500).json({
-      success: false,
-      message: "Failed to delete team.",
-    });
   }
-});
+);
 
-
-router.get("/:id/summary", async (req, res) => {
-  try {
-    const teamId = Number(req.params.id);
-
-    if (!Number.isInteger(teamId)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid team ID.",
-      });
-    }
-
-    const team = await prisma.team.findUnique({
-      where: {
-        id: teamId,
-      },
-      include: {
-        players: true,
-      },
-    });
-
-    if (!team) {
-      return res.status(404).json({
-        success: false,
-        message: "Team not found.",
-      });
-    }
-
-    const summary = {
-      teamId: team.id,
-      teamName: team.name,
-
-      players: team.players.length,
-
-      totalPoints: team.players.reduce(
-        (total, player) => total + player.totalPoints,
-        0
-      ),
-
-      rapidGain: team.players.reduce(
-        (total, player) => total + player.rapidGain,
-        0
-      ),
-
-      blitzGain: team.players.reduce(
-        (total, player) => total + player.blitzGain,
-        0
-      ),
-
-      bulletGain: team.players.reduce(
-        (total, player) => total + player.bulletGain,
-        0
-      ),
-    };
-
-    res.json({
-      success: true,
-      summary,
-    });
-  } catch (error) {
-    console.error("Team summary error:", error);
-
-    res.status(500).json({
-      success: false,
-      message: "Failed to calculate team summary.",
-    });
-  }
-});
 
 module.exports = router;

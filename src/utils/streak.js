@@ -1,87 +1,169 @@
-const { normalize } = require("./normalize");
+function getPlayerSide(result, playerId) {
+  if (result.whitePlayerId === playerId) {
+    return "WHITE";
+  }
+
+  if (result.blackPlayerId === playerId) {
+    return "BLACK";
+  }
+
+  return null;
+}
+
 
 /**
- * Counts consecutive CLEAN WINS (2:0 OR 1:0)
+ * Get consecutive wins.
+ *
+ * Only APPROVED results count.
  */
-function getWinStreak(results, username, mode, category) {
+function getWinStreak(
+  results,
+  playerId,
+  mode,
+  category
+) {
   let streak = 0;
 
   for (let i = results.length - 1; i >= 0; i--) {
-    const r = results[i];
+    const result = results[i];
 
-    // filter by mode & category
-    if (r.mode !== mode || r.category !== category) continue;
+    if (
+      result.approvalStatus !== "APPROVED"
+    ) {
+      continue;
+    }
 
-    const isA = normalize(r.playerA) === normalize(username);
-    const isB = normalize(r.playerB) === normalize(username);
+    if (result.mode !== mode) {
+      continue;
+    }
 
-    if (!isA && !isB) continue;
+    if (result.category !== category) {
+      continue;
+    }
 
-    const winAsA =
-      isA && r.scoreA > r.scoreB; // covers 2:0 and 1:0
+    const side = getPlayerSide(
+      result,
+      playerId
+    );
 
-    const winAsB =
-      isB && r.scoreB > r.scoreA; // covers 2:0 and 1:0
+    if (!side) {
+      continue;
+    }
 
-    if (winAsA || winAsB) {
+    const playerScore =
+      side === "WHITE"
+        ? result.whiteScore
+        : result.blackScore;
+
+    const opponentScore =
+      side === "WHITE"
+        ? result.blackScore
+        : result.whiteScore;
+
+    if (playerScore > opponentScore) {
       streak++;
     } else {
-      break; // streak broken
+      break;
     }
   }
 
   return streak;
 }
 
+
 /**
- * Counts consecutive LOSSES (0:2 OR 0:1)
+ * Get consecutive losses.
+ *
+ * Only APPROVED results count.
  */
-function getLossStreak(results, username, mode, category) {
+function getLossStreak(
+  results,
+  playerId,
+  mode,
+  category
+) {
   let streak = 0;
 
   for (let i = results.length - 1; i >= 0; i--) {
-    const r = results[i];
+    const result = results[i];
 
-    if (r.mode !== mode || r.category !== category) continue;
+    if (
+      result.approvalStatus !== "APPROVED"
+    ) {
+      continue;
+    }
 
-    const isA = normalize(r.playerA) === normalize(username);
-    const isB = normalize(r.playerB) === normalize(username);
+    if (result.mode !== mode) {
+      continue;
+    }
 
-    if (!isA && !isB) continue;
+    if (result.category !== category) {
+      continue;
+    }
 
-    const lossAsA =
-      isA && r.scoreA < r.scoreB; // covers 0:2 and 0:1
+    const side = getPlayerSide(
+      result,
+      playerId
+    );
 
-    const lossAsB =
-      isB && r.scoreB < r.scoreA; // covers 0:2 and 0:1
+    if (!side) {
+      continue;
+    }
 
-    if (lossAsA || lossAsB) {
+    const playerScore =
+      side === "WHITE"
+        ? result.whiteScore
+        : result.blackScore;
+
+    const opponentScore =
+      side === "WHITE"
+        ? result.blackScore
+        : result.whiteScore;
+
+    if (playerScore < opponentScore) {
       streak++;
     } else {
-      break; // streak broken
+      break;
     }
   }
 
   return streak;
 }
 
+
 /**
- * Win streak bonus
+ * Win streak multiplier.
  */
 function getWinMultiplier(winStreak) {
-  if (winStreak >= 6) return 5;
-  if (winStreak >= 3) return 3;
+  if (winStreak >= 6) {
+    return 5;
+  }
+
+  if (winStreak >= 3) {
+    return 3;
+  }
+
   return 1;
 }
 
+
 /**
- * Loss streak penalty (applies only to GAINS)
+ * Loss streak multiplier.
+ *
+ * This applies only to gains.
  */
 function getLossMultiplier(lossStreak) {
-  if (lossStreak >= 6) return 3;
-  if (lossStreak >= 3) return 2;
+  if (lossStreak >= 6) {
+    return 3;
+  }
+
+  if (lossStreak >= 3) {
+    return 2;
+  }
+
   return 1;
 }
+
 
 module.exports = {
   getWinStreak,
