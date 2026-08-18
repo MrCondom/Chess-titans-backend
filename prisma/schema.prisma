@@ -4,11 +4,16 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url = "file:../dev.db"
+  url      = "file:../dev.db"
 }
 
 
 enum PlayerStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum AdminStatus {
   ACTIVE
   INACTIVE
 }
@@ -19,22 +24,58 @@ enum GameMode {
   BULLET
 }
 
-enum AdminStatus {
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ApprovalType {
+  REGISTRATION
+  BIO_CHANGE
+  USERNAME_CHANGE
+  PROFILE_CHANGE
+  PASSWORD_CHANGE
+}
+
+enum NotificationType {
+  ANNOUNCEMENT
+  APPROVAL
+  REJECTION
+  PAIRING
+  RESULT
+  RANKING
+  CHAMPIONSHIP
+  SYSTEM
+}
+
+enum ChampionshipType {
+  TOURNAMENT
+  BULLET
+}
+
+enum TournamentStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum MembershipStatus {
   ACTIVE
   INACTIVE
 }
 
 
-/*
-|--------------------------------------------------------------------------
-| PLAYER
-|--------------------------------------------------------------------------
-*/
-
 model Player {
   id       Int    @id @default(autoincrement())
   fullName String
   username String @unique
+
+  status PlayerStatus @default(ACTIVE)
+
+  category String @default("")
+  bio      String @default("")
 
   rapidRating  Int @default(0)
   blitzRating  Int @default(0)
@@ -44,36 +85,43 @@ model Player {
   blitzGain  Int @default(0)
   bulletGain Int @default(0)
 
-  status   PlayerStatus @default(ACTIVE)
-  category String       @default("")
-
-  bio String @default("")
-
   totalPoints Float @default(0)
-  totalRounds Int @default(0)
+  totalRounds Int   @default(0)
+
+  currentChampionTitle String?
+  championshipWins     Int @default(0)
+
+  teamId Int?
+  team Team? @relation("PlayerTeam",fields: [teamId],references: [id],onDelete: SetNull)
+  
+  captainOfTeam Team? @relation("TeamCaptain")
+
+
+  whitePairings Pairing[] @relation("WhitePlayer")
+  blackPairings Pairing[] @relation("BlackPlayer")
+
+  whiteResults GameResult[] @relation("WhitePlayerResults")
+  blackResults GameResult[] @relation("BlackPlayerResults")
+
+  rankings PlayerRanking[]
+
+  ratingGains RatingGain[]
+
+  teamMemberships TeamMembership[]
+
+  approvalRequests ApprovalRequest[]
+
+  notifications Notification[]
+
+  bulletMemberships BulletChampionshipPlayer[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // TEAM
-  teamId Int?
-  team   Team? @relation(fields: [teamId], references: [id], onDelete: SetNull)
-
-  // PAIRINGS
-  whitePairings Pairing[] @relation("WhitePlayer")
-  blackPairings Pairing[] @relation("BlackPlayer")
-
-  // RESULTS
-  whiteResults GameResult[] @relation("WhitePlayerResults")
-  blackResults GameResult[] @relation("BlackPlayerResults")
-
-  // RANKINGS
-  rankings PlayerRanking[]
-  ratingGains RatingGain[]
-
   @@index([category])
   @@index([status])
   @@index([teamId])
+  @@index([fullName])
 }
 
 
@@ -82,26 +130,50 @@ model Team {
   name        String @unique
   description String @default("")
 
+  captainId Int?
+
+  captain Player? @relation("TeamCaptain", fields:[captainId],references:[id],onDelete: SetNull)
+
+  players Player[] @relation("PlayerTeam")
+
   totalPoints Int @default(0)
 
   rapidGain  Int @default(0)
   blitzGain  Int @default(0)
   bulletGain Int @default(0)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  memberships TeamMembership[]
 
-  // PLAYERS
-  players Player[]
-
-  // TEAM PAIRINGS
   teamPairingsAsTeamA TeamPairing[] @relation("TeamA")
   teamPairingsAsTeamB TeamPairing[] @relation("TeamB")
 
-  // RANKINGS
   rankings TeamRanking[]
 
-  @@index([name])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([captainId])
+}
+
+
+model TeamMembership {
+  id Int @id @default(autoincrement())
+
+  teamId   Int
+  playerId Int
+
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  status MembershipStatus @default(ACTIVE)
+
+  joinedAt  DateTime  @default(now())
+  leftAt    DateTime?
+
+  @@unique([teamId, playerId])
+  @@index([teamId])
+  @@index([playerId])
+  @@index([status])
 }
 
 
@@ -112,24 +184,29 @@ model Pairing {
   round    Int
   mode     GameMode
 
-  ratingGains RatingGain[]
   whitePlayerId Int
   blackPlayerId Int
 
-  whitePlayer Player @relation("WhitePlayer", fields: [whitePlayerId], references: [id], onDelete: Cascade)
-  blackPlayer Player @relation("BlackPlayer", fields: [blackPlayerId], references: [id], onDelete: Cascade)
+  whitePlayer Player @relation("WhitePlayer",fields: [whitePlayerId],references: [id],onDelete: Cascade)
+
+  blackPlayer Player @relation("BlackPlayer",fields: [blackPlayerId],references: [id],onDelete: Cascade)
 
   availableAt DateTime
 
   createdAt DateTime @default(now())
 
-  // RESULT
   result GameResult?
 
-  @@unique([category, round, mode, whitePlayerId, blackPlayerId])
+  ratingGains RatingGain[]
+
+  @@unique([category,round,mode,whitePlayerId,blackPlayerId])
+
   @@index([category])
   @@index([round])
+  @@index([mode])
   @@index([availableAt])
+  @@index([whitePlayerId])
+  @@index([blackPlayerId])
 }
 
 
@@ -141,17 +218,22 @@ model TeamPairing {
   teamAId Int
   teamBId Int
 
-  teamA Team @relation("TeamA", fields: [teamAId], references: [id], onDelete: Cascade)
-  teamB Team @relation("TeamB", fields: [teamBId], references: [id], onDelete: Cascade)
+  teamA Team @relation("TeamA",fields: [teamAId],references: [id],onDelete: Cascade )
+
+  teamB Team @relation("TeamB",fields: [teamBId],references: [id],onDelete: Cascade)
 
   availableAt DateTime
 
   createdAt DateTime @default(now())
 
   @@unique([round, teamAId, teamBId])
+
   @@index([round])
+  @@index([teamAId])
+  @@index([teamBId])
   @@index([availableAt])
 }
+
 
 
 model GameResult {
@@ -163,8 +245,9 @@ model GameResult {
   whitePlayerId Int
   blackPlayerId Int
 
-  whitePlayer Player @relation("WhitePlayerResults", fields: [whitePlayerId], references: [id], onDelete: Cascade)
-  blackPlayer Player @relation("BlackPlayerResults", fields: [blackPlayerId], references: [id], onDelete: Cascade)
+  whitePlayer Player @relation("WhitePlayerResults",fields: [whitePlayerId],references: [id],onDelete: Cascade)
+
+  blackPlayer Player @relation("BlackPlayerResults",fields: [blackPlayerId],references: [id],onDelete: Cascade)
 
   whiteScore Float
   blackScore Float
@@ -174,17 +257,51 @@ model GameResult {
 
   category String
 
-  date DateTime @default(now())
+  approved Boolean @default(false)
 
-  // PAIRING
+  approvedAt DateTime?
+
   pairingId Int? @unique
-  pairing   Pairing? @relation(fields: [pairingId], references: [id], onDelete: SetNull)
+
+  pairing Pairing? @relation(fields: [pairingId],references: [id],onDelete: SetNull)
+
+  date DateTime @default(now())
 
   @@index([round])
   @@index([mode])
   @@index([category])
   @@index([date])
+  @@index([approved])
+  @@index([whitePlayerId])
+  @@index([blackPlayerId])
 }
+
+
+model RatingGain {
+  id Int @id @default(autoincrement())
+
+  playerId Int
+
+  player Player @relation(fields: [playerId],references: [id],onDelete: Cascade)
+
+  pairingId Int?
+
+  pairing Pairing? @relation(fields: [pairingId],references: [id],onDelete: SetNull)
+
+  mode GameMode
+
+  amount Int
+
+  reason String?
+
+  createdAt DateTime @default(now())
+
+  @@index([playerId])
+  @@index([pairingId])
+  @@index([mode])
+  @@index([createdAt])
+}
+
 
 
 model PlayerRanking {
@@ -192,7 +309,7 @@ model PlayerRanking {
 
   playerId Int
 
-  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId],references: [id],onDelete: Cascade)
 
   category String
   mode     GameMode
@@ -200,18 +317,24 @@ model PlayerRanking {
   rank Int
 
   totalPoints Float @default(0)
-  totalRounds Int @default(0)
+  totalRounds Int   @default(0)
 
   accuracy Float @default(0)
+
+  tournamentId Int?
+
+  tournament Tournament? @relation(fields: [tournamentId], references: [id],onDelete: Cascade)
 
   month Int?
   year  Int?
 
   createdAt DateTime @default(now())
 
+  @@index([playerId])
   @@index([category])
   @@index([mode])
   @@index([rank])
+  @@index([tournamentId])
   @@index([year, month])
 }
 
@@ -221,7 +344,7 @@ model TeamRanking {
 
   teamId Int
 
-  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  team Team @relation(fields: [teamId],references: [id], onDelete: Cascade)
 
   category String?
   mode     GameMode?
@@ -229,40 +352,207 @@ model TeamRanking {
   rank Int
 
   totalPoints Float @default(0)
-  ratingGain  Int @default(0)
+  ratingGain  Int   @default(0)
 
   month Int?
   year  Int?
 
+  tournamentId Int?
+
+  tournament Tournament? @relation(fields: [tournamentId],references: [id],onDelete: Cascade)
+
   createdAt DateTime @default(now())
 
+  @@index([teamId])
   @@index([rank])
   @@index([category])
   @@index([mode])
+  @@index([tournamentId])
   @@index([year, month])
 }
 
-model RatingGain {
-  id          Int       @id @default(autoincrement())
 
-  playerId    Int
-  player      Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
-  pairingId   Int?
-  pairing      Pairing?    @relation(fields: [pairingId], references: [id], onDelete: SetNull)
+model Tournament {
+  id Int @id @default(autoincrement())
 
-  mode        GameMode
+  name String
 
-  amount      Int
+  category String?
 
-  reason      String?
+  mode GameMode
 
-  createdAt   DateTime  @default(now())
+  type ChampionshipType @default(TOURNAMENT)
+
+  status TournamentStatus @default(DRAFT)
+
+  championPlayerId Int?
+
+  championUsername String?
+
+  championTitle String?
+
+  startedAt  DateTime?
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  playerRankings PlayerRanking[]
+
+  teamRankings TeamRanking[]
+
+  results TournamentResult[]
+
+  @@index([mode])
+  @@index([category])
+  @@index([status])
+  @@index([completedAt])
+}
+
+
+model TournamentResult {
+  id Int @id @default(autoincrement())
+
+  tournamentId Int
+  playerId     Int
+
+  tournament Tournament @relation(fields: [tournamentId],references: [id],onDelete: Cascade )
+
+  player Player @relation(fields: [playerId],references: [id],onDelete: Cascade)
+
+  rank Int
+
+  totalPoints Float @default(0)
+
+  totalRounds Int @default(0)
+
+  accuracy Float @default(0)
+
+  ratingBefore Int @default(0)
+  ratingAfter  Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@unique([tournamentId, playerId])
+
+  @@index([tournamentId])
+  @@index([playerId])
+  @@index([rank])
+}
+
+
+model BulletChampionship {
+  id Int @id @default(autoincrement())
+
+  name String
+
+  status TournamentStatus @default(DRAFT)
+
+  championPlayerId Int?
+
+  championUsername String?
+
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  players BulletChampionshipPlayer[]
+
+  @@index([status])
+  @@index([completedAt])
+}
+
+
+model BulletChampionshipPlayer {
+  id Int @id @default(autoincrement())
+
+  championshipId Int
+  playerId       Int
+
+  championship BulletChampionship @relation(fields: [championshipId],references: [id],onDelete: Cascade)
+
+  player Player @relation(fields: [playerId],references: [id],onDelete: Cascade )
+
+  rank Int?
+
+  totalPoints Float @default(0)
+
+  totalRounds Int @default(0)
+
+  accuracy Float @default(0)
+
+  @@unique([championshipId, playerId])
+
+  @@index([championshipId])
+  @@index([playerId])
+}
+
+
+
+model ApprovalRequest {
+  id Int @id @default(autoincrement())
+
+  playerId Int?
+
+  player Player? @relation(fields: [playerId],references: [id],onDelete: Cascade)
+
+  type ApprovalType
+
+  status ApprovalStatus @default(PENDING)
+
+  data String
+
+  reason String?
+
+  adminId Int?
+
+  reviewedAt DateTime?
+
+  createdAt DateTime @default(now())
 
   @@index([playerId])
-  @@index([pairingId])
-  @@index([mode])
+  @@index([type])
+  @@index([status])
   @@index([createdAt])
+}
+
+
+model Notification {
+  id Int @id @default(autoincrement())
+
+  playerId Int?
+
+  player Player? @relation(fields: [playerId],references: [id],onDelete: Cascade)
+
+  type NotificationType
+
+  title String
+
+  message String
+
+  isRead Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([playerId])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+model Announcement {
+  id Int @id @default(autoincrement())
+
+  message String
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
 }
 
 
@@ -292,7 +582,7 @@ model AdminLoginLog {
 
   adminId Int
 
-  admin Admin @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  admin Admin @relation(fields: [adminId],references: [id],onDelete: Cascade )
 
   ipAddress String
 
@@ -314,21 +604,8 @@ model BlockedIP {
   isBlocked Boolean @default(true)
 
   blockedAt DateTime @default(now())
+
   unblockedAt DateTime?
 
   @@index([isBlocked])
-}
-
-
-model Announcement {
-  id Int @id @default(autoincrement())
-
-  message String
-
-  isActive Boolean @default(true)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([isActive])
 }
