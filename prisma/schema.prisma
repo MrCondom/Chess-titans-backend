@@ -276,7 +276,7 @@ model GameResult {
   @@index([mode])
   @@index([category])
   @@index([date])
-  @@index([approved])
+  @@index([approvalStatus])
   @@index([whitePlayerId])
   @@index([blackPlayerId])
 }
@@ -392,6 +392,7 @@ model Tournament {
   status TournamentStatus @default(DRAFT)
 
   championPlayerId Int?
+  championPlayer Player? @relation("TournamentChampion", fields: [championPlayerId], references: [id], onDelete: SetNull)
 
   championUsername String?
 
@@ -455,6 +456,7 @@ model BulletChampionship {
   status TournamentStatus @default(DRAFT)
 
   championPlayerId Int?
+  championPlayer  Player? @relation("TournamentChampion", fields: [championPlayerId], references: [id], onDelete: SetNull)
 
   championUsername String?
 
@@ -468,6 +470,7 @@ model BulletChampionship {
 
   @@index([status])
   @@index([completedAt])
+  @@index([championPlayerId])
 }
 
 
@@ -482,9 +485,6 @@ model BulletChampionshipPlayer {
   player Player @relation(fields: [playerId],references: [id],onDelete: Cascade )
 
   rank Int?
-
-  championPlayerId Int?
-  championPlayer  Player? @relation("TournamentChampion", fields: [championPlayerId], references: [id], onDelete: SetNull)
 
   totalPoints Float @default(0)
 
