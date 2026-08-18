@@ -7,6 +7,7 @@ const teamsRoutes = require("./routes/teams");
 const pairingsRoutes = require("./routes/pairings")
 const adminRoutes = require("./routes/admin")
 const authRoutes = require("./routes/auth")
+const resultRoutes = require("./routes/results")
 const rankingsRoutes = require("./routes/rankings")
 
 dotenv.config();
@@ -27,6 +28,7 @@ app.use("/teams", teamsRoutes);
 app.use("/pairings", pairingsRoutes);
 app.use("/admin", adminRoutes)
 app.use("/auth", authRoutes)
+app.use("/results", resultRoutes)
 app.use("/rankings", rankingsRoutes)
 
 

@@ -266,6 +266,8 @@ model GameResult {
 
   approvedAt DateTime?
 
+  rejectionReason String?
+
   pairingId Int? @unique
 
   pairing Pairing? @relation(fields: [pairingId],references: [id],onDelete: SetNull)

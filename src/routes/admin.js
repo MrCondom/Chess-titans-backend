@@ -5,6 +5,7 @@ const router = express.Router();
 const prisma = require("../lib/prisma");
 const adminAuth = require("../middleware/adminAuth");
 const approvalService = require("../services/approvalService");
+const ratingService = require("../services/ratingService");
 
 
 router.get("/approvals", adminAuth, async (req, res) => {
@@ -320,6 +321,113 @@ router.get("/approvals/history", adminAuth, async (req, res) => {
     });
   }
 });
+
+Admins
+router.get(
+  "/results/pending",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const results =
+        await ratingService.getAllResults({
+          approvalStatus: "PENDING",
+          category:
+            req.query.category,
+          mode:
+            req.query.mode,
+          round:
+            req.query.round,
+        });
+
+      return res.json({
+        success: true,
+        results,
+      });
+    } catch (error) {
+      console.error(
+        "GET PENDING RESULTS ERROR:",
+        error
+      );
+
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+);
+
+router.post(
+  "/results/:id/approve",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const result =
+        await ratingService.approveResult(
+          req.params.id
+        );
+
+      return res.json({
+        success: true,
+        message:
+          "Result approved and ratings updated successfully.",
+        result,
+      });
+    } catch (error) {
+      console.error(
+        "APPROVE RESULT ERROR:",
+        error
+      );
+
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+        code:
+          error.code ||
+          "RESULT_APPROVAL_ERROR",
+      });
+    }
+  }
+);
+
+
+router.post(
+  "/results/:id/reject",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const {
+        reason,
+      } = req.body;
+
+      const result =
+        await ratingService.rejectResult(
+          req.params.id,
+          reason
+        );
+
+      return res.json({
+        success: true,
+        message:
+          "Result rejected successfully.",
+        result,
+      });
+    } catch (error) {
+      console.error(
+        "REJECT RESULT ERROR:",
+        error
+      );
+
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+        code:
+          error.code ||
+          "RESULT_REJECTION_ERROR",
+      });
+    }
+  }
+);
 
 
 module.exports = router;

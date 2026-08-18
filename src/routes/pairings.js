@@ -63,7 +63,7 @@ router.post("/generate", adminAuth, async (req, res) => {
 });
 
 
-router.get("/", playerAuth, async (req, res) => {
+router.get("/", adminAuth, async (req, res) => {
   try {
     const {
       category,

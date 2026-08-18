@@ -181,6 +181,8 @@ async function generatePairings({
       });
 
       createdPairings.push(created);
+
+      await notificationService.notifyPairingCreated(created)
     } catch (error) {
       
       if (error.code === "P2002") {

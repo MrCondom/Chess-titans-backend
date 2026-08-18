@@ -5,7 +5,9 @@ async function createNotification({
   type,
   title,
   message,
+  db = prisma,
 }) {
+  
   if (!playerId) {
     throw new Error("Player ID is required.");
   }
@@ -22,7 +24,7 @@ async function createNotification({
     throw new Error("Notification message is required.");
   }
 
-  const notification = await prisma.notification.create({
+  const notification = await db.notification.create({
     data: {
       playerId: Number(playerId),
       type,
