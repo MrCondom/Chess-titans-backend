@@ -71,6 +71,7 @@ model Player {
   id       Int    @id @default(autoincrement())
   fullName String
   username String @unique
+  passwordHash String?
 
   status PlayerStatus @default(ACTIVE)
 
@@ -111,6 +112,10 @@ model Player {
 
   approvalRequests ApprovalRequest[]
 
+  tournamentResults TournamentResult[]
+  tournamentWon Tournament[] @relation("TournamentChampion")
+
+  bulletChampionshipsWon BulletChampionship[] @relation("BulletChampion")
   notifications Notification[]
 
   bulletMemberships BulletChampionshipPlayer[]
@@ -257,7 +262,7 @@ model GameResult {
 
   category String
 
-  approved Boolean @default(false)
+  approvalStatus ApprovalStatus @default(PENDING)
 
   approvedAt DateTime?
 
@@ -478,6 +483,9 @@ model BulletChampionshipPlayer {
 
   rank Int?
 
+  championPlayerId Int?
+  championPlayer  Player? @relation("TournamentChampion", fields: [championPlayerId], references: [id], onDelete: SetNull)
+
   totalPoints Float @default(0)
 
   totalRounds Int @default(0)
@@ -508,6 +516,7 @@ model ApprovalRequest {
   reason String?
 
   adminId Int?
+  admin   Admin? @relation(fields: [adminId], references: [id], onDelete: SetNull)
 
   reviewedAt DateTime?
 
@@ -563,6 +572,8 @@ model Admin {
   passwordHash String
 
   ipAddress String?
+
+  approvalRequests ApprovalRequest[]
 
   status AdminStatus @default(ACTIVE)
 
