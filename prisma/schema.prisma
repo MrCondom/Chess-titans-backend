@@ -135,7 +135,7 @@ model Team {
   name        String @unique
   description String @default("")
 
-  captainId Int?
+  captainId Int? @unique
 
   captain Player? @relation("TeamCaptain", fields:[captainId],references:[id],onDelete: SetNull)
 
@@ -391,7 +391,7 @@ model Tournament {
 
   status TournamentStatus @default(DRAFT)
 
-  championPlayerId Int?
+  championPlayerId Int? 
   championPlayer Player? @relation("TournamentChampion", fields: [championPlayerId], references: [id], onDelete: SetNull)
 
   championUsername String?
@@ -414,6 +414,7 @@ model Tournament {
   @@index([category])
   @@index([status])
   @@index([completedAt])
+  @@index([championPlayerId])
 }
 
 
@@ -456,7 +457,7 @@ model BulletChampionship {
   status TournamentStatus @default(DRAFT)
 
   championPlayerId Int?
-  championPlayer  Player? @relation("TournamentChampion", fields: [championPlayerId], references: [id], onDelete: SetNull)
+  championPlayer  Player? @relation("BulletChampion", fields: [championPlayerId], references: [id], onDelete: SetNull)
 
   championUsername String?
 
