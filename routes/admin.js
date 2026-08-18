@@ -1,6 +1,16 @@
-const express = require("express")
+const express = require("express");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+
 const prisma = require("../lib/prisma");
+
 const router = express.Router();
+
+const {
+  adminAuth,
+  getClientIp,
+  isBlockedIP,
+} = require("../middleware/adminAuth");
 
 const {
   calculateRatingChange,
@@ -91,9 +101,609 @@ function getPlayerStreaks(
   };
 }
 
+router.post("/login", async (req, res) => {
+  try {
+    const username =
+      String(
+        req.body.username || ""
+      )
+        .trim()
+        .toLowerCase();
+
+    const password =
+      String(
+        req.body.password || ""
+      );
 
 
-router.post("/record-result", async (req, res) => {
+    if (!username || !password) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Username and password are required.",
+      });
+    }
+
+
+    const ipAddress =
+      getClientIp(req);
+
+
+    if (
+      await isBlockedIP(
+        ipAddress
+      )
+    ) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Access denied.",
+      });
+    }
+
+
+    const admin =
+      await prisma.admin.findUnique({
+        where: {
+          username,
+        },
+      });
+
+
+    if (!admin) {
+      return res.status(401).json({
+        success: false,
+        message:
+          "Invalid username or password.",
+      });
+    }
+
+
+    if (
+      admin.status !== "ACTIVE"
+    ) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Admin account is inactive.",
+      });
+    }
+
+    const passwordValid =
+      await bcrypt.compare(
+        password,
+        admin.passwordHash
+      );
+
+
+    if (!passwordValid) {
+      await prisma.adminLoginLog.create({
+        data: {
+          adminId: admin.id,
+          ipAddress,
+          successful: false,
+        },
+      });
+
+      return res.status(401).json({
+        success: false,
+        message:
+          "Invalid username or password.",
+      });
+    }
+
+
+    const now = new Date();
+
+
+    await prisma.$transaction([
+      prisma.admin.update({
+        where: {
+          id: admin.id,
+        },
+
+        data: {
+          ipAddress,
+          lastLoginAt: now,
+        },
+      }),
+
+      prisma.adminLoginLog.create({
+        data: {
+          adminId: admin.id,
+          ipAddress,
+          successful: true,
+          loginAt: now,
+        },
+      }),
+    ]);
+
+
+    if (!process.env.JWT_SECRET) {
+      console.error(
+        "JWT_SECRET is not configured."
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Authentication configuration error.",
+      });
+    }
+
+
+    const token =
+      jwt.sign(
+        {
+          adminId: admin.id,
+          username: admin.username,
+        },
+
+        process.env.JWT_SECRET,
+
+        {
+          expiresIn:
+            process.env.JWT_EXPIRES_IN ||
+            "7d",
+        }
+      );
+
+
+    return res.json({
+      success: true,
+
+      message:
+        "Admin login successful.",
+
+      token,
+
+      admin: {
+        id: admin.id,
+        username: admin.username,
+        status: admin.status,
+        ipAddress,
+        lastLoginAt: now,
+      },
+    });
+
+  } catch (error) {
+    console.error(
+      "admin login error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Failed to login.",
+    });
+  }
+});
+
+
+router.get(
+  "/me",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const admin =
+        await prisma.admin.findUnique({
+          where: {
+            id: req.admin.id,
+          },
+
+          select: {
+            id: true,
+            username: true,
+            ipAddress: true,
+            status: true,
+            lastLoginAt: true,
+            createdAt: true,
+          },
+        });
+
+
+      if (!admin) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Admin account not found.",
+        });
+      }
+
+
+      return res.json({
+        success: true,
+        admin,
+      });
+
+    } catch (error) {
+      console.error(
+        "get admin profile error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to load admin profile.",
+      });
+    }
+  }
+);
+
+
+router.post(
+  "/logout",
+  adminAuth,
+  async (req, res) => {
+    return res.json({
+      success: true,
+      message:
+        "Logged out successfully.",
+    });
+  }
+);
+
+
+router.post(
+  "/blocked-ips",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const ipAddress =
+        String(
+          req.body.ipAddress || ""
+        ).trim();
+
+
+      if (!ipAddress) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "IP address is required.",
+        });
+      }
+
+
+      const existing =
+        await prisma.blockedIP.findUnique({
+          where: {
+            ipAddress,
+          },
+        });
+
+
+      if (existing) {
+        const updated =
+          await prisma.blockedIP.update({
+            where: {
+              ipAddress,
+            },
+
+            data: {
+              isBlocked: true,
+              blockedAt: new Date(),
+              unblockedAt: null,
+            },
+          });
+
+        return res.json({
+          success: true,
+          message:
+            "IP address blocked successfully.",
+          blockedIP: updated,
+        });
+      }
+
+
+      const blocked =
+        await prisma.blockedIP.create({
+          data: {
+            ipAddress,
+            isBlocked: true,
+          },
+        });
+
+
+      return res.status(201).json({
+        success: true,
+        message:
+          "IP address blocked successfully.",
+        blockedIP: blocked,
+      });
+
+    } catch (error) {
+      console.error(
+        "block IP error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to block IP address.",
+      });
+    }
+  }
+);
+
+router.patch(
+  "/blocked-ips/:ipAddress/unblock",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const ipAddress =
+        String(
+          req.params.ipAddress || ""
+        ).trim();
+
+
+      const blocked =
+        await prisma.blockedIP.findUnique({
+          where: {
+            ipAddress,
+          },
+        });
+
+
+      if (!blocked) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "IP address not found.",
+        });
+      }
+
+
+      const updated =
+        await prisma.blockedIP.update({
+          where: {
+            ipAddress,
+          },
+
+          data: {
+            isBlocked: false,
+            unblockedAt:
+              new Date(),
+          },
+        });
+
+
+      return res.json({
+        success: true,
+        message:
+          "IP address unblocked successfully.",
+        blockedIP: updated,
+      });
+
+    } catch (error) {
+      console.error(
+        "unblock IP error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to unblock IP address.",
+      });
+    }
+  }
+);
+
+router.get(
+  "/blocked-ips",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const blockedIPs =
+        await prisma.blockedIP.findMany({
+          orderBy: {
+            blockedAt: "desc",
+          },
+        });
+
+
+      return res.json({
+        success: true,
+        blockedIPs,
+      });
+
+    } catch (error) {
+      console.error(
+        "get blocked IPs error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to load blocked IPs.",
+      });
+    }
+  }
+);
+
+router.get(
+  "/login-logs",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const logs =
+        await prisma.adminLoginLog.findMany({
+          include: {
+            admin: {
+              select: {
+                id: true,
+                username: true,
+              },
+            },
+          },
+
+          orderBy: {
+            loginAt: "desc",
+          },
+
+          take: 200,
+        });
+
+
+      return res.json({
+        success: true,
+        logs,
+      });
+
+    } catch (error) {
+      console.error(
+        "get login logs error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to load login logs.",
+      });
+    }
+  }
+);
+
+
+router.get(
+  "/admins",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const admins =
+        await prisma.admin.findMany({
+          select: {
+            id: true,
+            username: true,
+            ipAddress: true,
+            status: true,
+            lastLoginAt: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+
+          orderBy: {
+            id: "asc",
+          },
+        });
+
+
+      return res.json({
+        success: true,
+        admins,
+      });
+
+    } catch (error) {
+      console.error(
+        "get admins error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to load admins.",
+      });
+    }
+  }
+);
+
+
+router.patch(
+  "/admins/:id/status",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const adminId =
+        Number(req.params.id);
+
+      const status =
+        String(
+          req.body.status || ""
+        )
+          .trim()
+          .toUpperCase();
+
+
+      if (!Number.isInteger(adminId)) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid admin ID.",
+        });
+      }
+
+
+      if (
+        !["ACTIVE", "INACTIVE"]
+          .includes(status)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Status must be ACTIVE or INACTIVE.",
+        });
+      }
+
+      if (
+        adminId === req.admin.id &&
+        status === "INACTIVE"
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "You cannot deactivate your own account.",
+        });
+      }
+
+
+      const admin =
+        await prisma.admin.update({
+          where: {
+            id: adminId,
+          },
+
+          data: {
+            status,
+          },
+
+          select: {
+            id: true,
+            username: true,
+            status: true,
+          },
+        });
+
+
+      return res.json({
+        success: true,
+        message:
+          "Admin status updated successfully.",
+        admin,
+      });
+
+    } catch (error) {
+      console.error(
+        "update admin status error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to update admin status.",
+      });
+    }
+  }
+);
+
+
+router.post("/record-result", adminAuth, async (req, res) => {
   try {
     let {
       white,
@@ -130,11 +740,6 @@ router.post("/record-result", async (req, res) => {
       });
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | FIND PAIRING
-    |--------------------------------------------------------------------------
-    */
 
     const pairing = await prisma.pairing.findFirst({
       where: {
@@ -164,12 +769,6 @@ router.post("/record-result", async (req, res) => {
       });
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | CHECK IF RESULT ALREADY EXISTS
-    |--------------------------------------------------------------------------
-    */
-
     if (pairing.result) {
       return res.status(400).json({
         success: false,
@@ -177,11 +776,6 @@ router.post("/record-result", async (req, res) => {
       });
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | PARSE RESULT
-    |--------------------------------------------------------------------------
-    */
 
     const parts = String(result)
       .trim()
@@ -202,11 +796,6 @@ router.post("/record-result", async (req, res) => {
     const scoreWhite = parts[0];
     const scoreBlack = parts[1];
 
-    /*
-    |--------------------------------------------------------------------------
-    | VALIDATE CHESS RESULT
-    |--------------------------------------------------------------------------
-    */
 
     const validResult =
       (scoreWhite === 1 && scoreBlack === 0) ||
@@ -220,11 +809,6 @@ router.post("/record-result", async (req, res) => {
       });
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | DETERMINE RESULT
-    |--------------------------------------------------------------------------
-    */
 
     let pairingResult;
 
@@ -236,11 +820,6 @@ router.post("/record-result", async (req, res) => {
       pairingResult = "DRAW";
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | GET CURRENT RATINGS
-    |--------------------------------------------------------------------------
-    */
 
     const whiteRating = getPlayerRating(
       pairing.whitePlayer,
@@ -251,12 +830,6 @@ router.post("/record-result", async (req, res) => {
       pairing.blackPlayer,
       mode
     );
-
-    /*
-    |--------------------------------------------------------------------------
-    | GET PREVIOUS RATING GAINS
-    |--------------------------------------------------------------------------
-    */
 
     const previousGains = await prisma.ratingGain.findMany({
       where: {
@@ -279,11 +852,6 @@ router.post("/record-result", async (req, res) => {
       },
     });
 
-    /*
-    |--------------------------------------------------------------------------
-    | CALCULATE BASE RATING CHANGE
-    |--------------------------------------------------------------------------
-    */
 
     let { changeA, changeB } = calculateRatingChange(
       whiteRating,
@@ -292,11 +860,6 @@ router.post("/record-result", async (req, res) => {
       scoreBlack
     );
 
-    /*
-    |--------------------------------------------------------------------------
-    | CALCULATE STREAKS
-    |--------------------------------------------------------------------------
-    */
 
     const whiteStreaks = getPlayerStreaks(
       previousGains,
@@ -318,11 +881,6 @@ router.post("/record-result", async (req, res) => {
     let winStreakBlack = blackStreaks.win;
     let lossStreakBlack = blackStreaks.loss;
 
-    /*
-    |--------------------------------------------------------------------------
-    | COUNT CURRENT RESULT IN STREAK
-    |--------------------------------------------------------------------------
-    */
 
     if (scoreWhite > scoreBlack) {
       winStreakWhite++;
@@ -340,11 +898,6 @@ router.post("/record-result", async (req, res) => {
       winStreakBlack = 0;
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | STREAK MULTIPLIERS
-    |--------------------------------------------------------------------------
-    */
 
     const winMultWhite =
       getWinMultiplier(winStreakWhite);
@@ -358,11 +911,6 @@ router.post("/record-result", async (req, res) => {
     const lossMultBlack =
       getLossMultiplier(lossStreakBlack);
 
-    /*
-    |--------------------------------------------------------------------------
-    | APPLY MULTIPLIERS
-    |--------------------------------------------------------------------------
-    */
 
     if (changeA > 0) {
       changeA = Math.round(
@@ -390,11 +938,6 @@ router.post("/record-result", async (req, res) => {
       );
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | DETERMINE RATING FIELD
-    |--------------------------------------------------------------------------
-    */
 
     const ratingField = {
       RAPID: "rapidRating",
@@ -406,20 +949,10 @@ router.post("/record-result", async (req, res) => {
 
     const now = new Date();
 
-    /*
-    |--------------------------------------------------------------------------
-    | DATABASE TRANSACTION
-    |--------------------------------------------------------------------------
-    */
 
     const transactionResult =
       await prisma.$transaction(async (tx) => {
 
-        /*
-        |--------------------------------------------------------------------------
-        | UPDATE WHITE PLAYER
-        |--------------------------------------------------------------------------
-        */
 
         const updatedWhite =
           await tx.player.update({
@@ -446,11 +979,6 @@ router.post("/record-result", async (req, res) => {
             },
           });
 
-        /*
-        |--------------------------------------------------------------------------
-        | UPDATE BLACK PLAYER
-        |--------------------------------------------------------------------------
-        */
 
         const updatedBlack =
           await tx.player.update({
@@ -477,11 +1005,6 @@ router.post("/record-result", async (req, res) => {
             },
           });
 
-        /*
-        |--------------------------------------------------------------------------
-        | CREATE GAME RESULT
-        |--------------------------------------------------------------------------
-        */
 
         const gameResult =
           await tx.gameResult.create({
@@ -515,12 +1038,7 @@ router.post("/record-result", async (req, res) => {
             },
           });
 
-        /*
-        |--------------------------------------------------------------------------
-        | CREATE WHITE RATING HISTORY
-        |--------------------------------------------------------------------------
-        */
-
+       
         await tx.ratingGain.create({
           data: {
             playerId: pairing.whitePlayerId,
@@ -535,11 +1053,6 @@ router.post("/record-result", async (req, res) => {
           },
         });
 
-        /*
-        |--------------------------------------------------------------------------
-        | CREATE BLACK RATING HISTORY
-        |--------------------------------------------------------------------------
-        */
 
         await tx.ratingGain.create({
           data: {
@@ -562,11 +1075,6 @@ router.post("/record-result", async (req, res) => {
         };
       });
 
-    /*
-    |--------------------------------------------------------------------------
-    | RESPONSE
-    |--------------------------------------------------------------------------
-    */
 
     return res.json({
       success: true,
@@ -628,6 +1136,338 @@ router.post("/record-result", async (req, res) => {
     });
   }
 });
+
+router.get(
+  "/rating-gains/player/:playerId",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const playerId =
+        Number(req.params.playerId);
+
+      if (!Number.isInteger(playerId)) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid player ID.",
+        });
+      }
+
+
+      const player =
+        await prisma.player.findUnique({
+          where: {
+            id: playerId,
+          },
+
+          select: {
+            id: true,
+            fullName: true,
+            username: true,
+            category: true,
+            rapidRating: true,
+            blitzRating: true,
+            bulletRating: true,
+          },
+        });
+
+
+      if (!player) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Player not found.",
+        });
+      }
+
+
+      const gains =
+        await prisma.ratingGain.findMany({
+          where: {
+            playerId,
+          },
+
+          include: {
+            pairing: {
+              select: {
+                id: true,
+                category: true,
+                round: true,
+                mode: true,
+              },
+            },
+          },
+
+          orderBy: {
+            createdAt: "desc",
+          },
+        });
+
+
+      return res.json({
+        success: true,
+
+        player,
+
+        gains,
+      });
+
+    } catch (error) {
+      console.error(
+        "get player rating gains error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to load rating gains.",
+      });
+    }
+  }
+);
+
+
+router.get(
+  "/rating-gains",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const playerId =
+        req.query.playerId
+          ? Number(req.query.playerId)
+          : undefined;
+
+      const mode =
+        req.query.mode
+          ? String(
+              req.query.mode
+            )
+              .trim()
+              .toUpperCase()
+          : undefined;
+
+
+      if (
+        playerId !== undefined &&
+        !Number.isInteger(playerId)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid player ID.",
+        });
+      }
+
+
+      if (
+        mode &&
+        ![
+          "RAPID",
+          "BLITZ",
+          "BULLET",
+        ].includes(mode)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid game mode.",
+        });
+      }
+
+
+      const gains =
+        await prisma.ratingGain.findMany({
+          where: {
+            ...(playerId !== undefined
+              ? { playerId }
+              : {}),
+
+            ...(mode
+              ? { mode }
+              : {}),
+          },
+
+          include: {
+            player: {
+              select: {
+                id: true,
+                fullName: true,
+                username: true,
+                category: true,
+              },
+            },
+
+            pairing: {
+              select: {
+                id: true,
+                category: true,
+                round: true,
+                mode: true,
+              },
+            },
+          },
+
+          orderBy: {
+            createdAt: "desc",
+          },
+
+          take: 500,
+        });
+
+
+      return res.json({
+        success: true,
+
+        filters: {
+          playerId:
+            playerId ?? null,
+
+          mode:
+            mode
+              ? mode.toLowerCase()
+              : null,
+        },
+
+        gains,
+      });
+
+    } catch (error) {
+      console.error(
+        "get rating gains error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to load rating gains.",
+      });
+    }
+  }
+);
+
+
+router.get(
+  "/rating-gains/summary/:playerId",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const playerId =
+        Number(req.params.playerId);
+
+
+      if (!Number.isInteger(playerId)) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid player ID.",
+        });
+      }
+
+
+      const player =
+        await prisma.player.findUnique({
+          where: {
+            id: playerId,
+          },
+
+          select: {
+            id: true,
+            fullName: true,
+            username: true,
+            category: true,
+
+            rapidRating: true,
+            blitzRating: true,
+            bulletRating: true,
+
+            rapidGain: true,
+            blitzGain: true,
+            bulletGain: true,
+          },
+        });
+
+
+      if (!player) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Player not found.",
+        });
+      }
+
+
+      const gains =
+        await prisma.ratingGain.findMany({
+          where: {
+            playerId,
+          },
+
+          select: {
+            mode: true,
+            amount: true,
+            createdAt: true,
+          },
+
+          orderBy: {
+            createdAt: "asc",
+          },
+        });
+
+
+      const summary = {
+        RAPID: {
+          games: 0,
+          gain: 0,
+        },
+
+        BLITZ: {
+          games: 0,
+          gain: 0,
+        },
+
+        BULLET: {
+          games: 0,
+          gain: 0,
+        },
+      };
+
+
+      for (const gain of gains) {
+        summary[gain.mode].games++;
+
+        summary[gain.mode].gain +=
+          gain.amount;
+      }
+
+
+      return res.json({
+        success: true,
+
+        player,
+
+        summary: {
+          rapid: summary.RAPID,
+          blitz: summary.BLITZ,
+          bullet: summary.BULLET,
+        },
+      });
+
+    } catch (error) {
+      console.error(
+        "rating gain summary error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to load rating gain summary.",
+      });
+    }
+  }
+);
 
 
 module.exports = router

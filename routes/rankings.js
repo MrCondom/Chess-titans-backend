@@ -430,10 +430,7 @@ router.post("/players/rebuild", async (req, res) => {
 
             rank: ranking.rank,
 
-            totalPoints:
-              Math.round(
-                ranking.totalPoints
-              ),
+            totalPoints: ranking.totalPoints,
 
             totalRounds:
               ranking.totalRounds,
@@ -912,10 +909,7 @@ router.post("/teams/rebuild", async (req, res) => {
             rank:
               ranking.rank,
 
-            totalPoints:
-              Math.round(
-                ranking.totalPoints
-              ),
+            totalPoints: ranking.totalPoints,
 
             ratingGain:
               Math.round(
