@@ -9,8 +9,10 @@ datasource db {
 
 
 enum PlayerStatus {
+  UNREGISTERED
   ACTIVE
   INACTIVE
+  SUSPENDED
 }
 
 enum AdminStatus {
@@ -35,6 +37,7 @@ enum ApprovalType {
   BIO_CHANGE
   USERNAME_CHANGE
   PROFILE_CHANGE
+  RATING_CHANGE
   PASSWORD_CHANGE
 }
 
