@@ -52,9 +52,16 @@ enum NotificationType {
   SYSTEM
 }
 
-enum ChampionshipType {
-  TOURNAMENT
+enum TournamentType {
+  CATEGORY
   SPECIAL
+  TEAM
+}
+
+enum TournamentFormat {
+  SWISS
+  ROUND_ROBIN
+  TEAM_BOARD
 }
 
 enum TournamentStatus {
@@ -91,8 +98,10 @@ model Player {
 
   totalPoints Float @default(0)
   totalRounds Int   @default(0)
+  totalWins Int @default(0)
+  totalLosses Int @default(0)
+  totalDraws Int @default(0)
 
-  currentChampionTitle String?
   championshipWins     Int @default(0)
 
   teamId Int?
@@ -183,6 +192,7 @@ model TeamMembership {
   @@index([teamId])
   @@index([playerId])
   @@index([status])
+  @@index([teamId, boardPosition])
 }
 
 
@@ -192,6 +202,9 @@ model Pairing {
   category String
   round    Int
   mode     GameMode
+
+  tournamentId Int?
+  tournament Tournament? @relation(fields: [tournamentId], references: [id], onDelete: SetNull)
 
   whitePlayerId Int
   blackPlayerId Int
@@ -208,7 +221,6 @@ model Pairing {
 
   ratingGains RatingGain[]
 
-  @@unique([category,round,mode,whitePlayerId,blackPlayerId])
 
   @@index([category])
   @@index([round])
@@ -216,6 +228,7 @@ model Pairing {
   @@index([availableAt])
   @@index([whitePlayerId])
   @@index([blackPlayerId])
+  @@index([tournamentId])
 }
 
 
@@ -227,6 +240,11 @@ model TeamPairing {
   teamAId Int
   teamBId Int
 
+  tournamentId Int
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  games TeamGame[]
+
   teamA Team @relation("TeamA",fields: [teamAId],references: [id],onDelete: Cascade )
 
   teamB Team @relation("TeamB",fields: [teamBId],references: [id],onDelete: Cascade)
@@ -235,7 +253,7 @@ model TeamPairing {
 
   createdAt DateTime @default(now())
 
-  @@unique([round, teamAId, teamBId])
+  @@unique([tournamentId, round, teamAId, teamBId])
 
   @@index([round])
   @@index([teamAId])
@@ -244,6 +262,17 @@ model TeamPairing {
 }
 
 
+model TeamGame {
+  id Int @id @default(autoincrement())
+  
+  teamPairingId Int
+  boardPosition  Int
+  whitePlayerId Int
+  blackPlayerId Int
+  result Int
+  
+
+  }
 
 model GameResult {
   id Int @id @default(autoincrement())
@@ -264,9 +293,13 @@ model GameResult {
   whiteRatingChange Int @default(0)
   blackRatingChange Int @default(0)
 
+  submittedByPlayerId Int?
+
   category String
 
   approvalStatus ApprovalStatus @default(PENDING)
+
+  approvedByAdminId Int?
 
   approvedAt DateTime?
 
@@ -299,9 +332,20 @@ model RatingGain {
 
   pairing Pairing? @relation(fields: [pairingId],references: [id],onDelete: SetNull)
 
+  approvalStatus ApprovalStatus @default(PENDING)
+  approvedAt DateTime?
+
+  approvedByAdminId Int?
+
+  appliedAt DateTime?
+
+  tournamentId Int?
+
   mode GameMode
 
   amount Int
+
+  isApplied Boolean @default(false)
 
   reason String?
 
@@ -326,6 +370,8 @@ model PlayerRanking {
   mode     GameMode
 
   rank Int
+
+  rating Int @default(0)
 
   totalPoints Float @default(0)
   totalRounds Int   @default(0)
@@ -393,7 +439,8 @@ model Tournament {
 
   mode GameMode
 
-  type ChampionshipType @default(TOURNAMENT)
+  type TournamentType @default(CATEGORY)
+  format TournamentFormat @default(SWISS)
 
   status TournamentStatus @default(DRAFT)
 
@@ -401,6 +448,8 @@ model Tournament {
   championPlayer Player? @relation("TournamentChampion", fields: [championPlayerId], references: [id], onDelete: SetNull)
 
   championUsername String?
+
+  teamPairings TeamPairing[]
 
   players TournamentPlayer[]
   
