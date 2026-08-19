@@ -4,7 +4,7 @@ const teamService = require("../services/teamService");
 
 const playerAuth = require("../middleware/playerAuth");
 const adminAuth = require("../middleware/adminAuth");
-const teamService = require("../services/teamService");
+
 
 const router = express.Router();
 

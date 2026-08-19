@@ -102,82 +102,6 @@ router.get("/me", playerAuth, async (req, res) => {
   }
 });
 
-
-router.get("/:id", async (req, res) => {
-  try {
-    const playerId = Number(req.params.id);
-
-    if (!Number.isInteger(playerId) || playerId <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid player ID.",
-      });
-    }
-
-    const player = await prisma.player.findUnique({
-      where: {
-        id: playerId,
-      },
-
-      select: {
-        id: true,
-        fullName: true,
-        username: true,
-        status: true,
-
-        category: true,
-        bio: true,
-
-        rapidRating: true,
-        blitzRating: true,
-        bulletRating: true,
-
-        rapidGain: true,
-        blitzGain: true,
-        bulletGain: true,
-
-        totalPoints: true,
-        totalRounds: true,
-
-        currentChampionTitle: true,
-        championshipWins: true,
-
-        teamId: true,
-
-        createdAt: true,
-      },
-    });
-
-    if (!player) {
-      return res.status(404).json({
-        success: false,
-        message: "Player not found.",
-      });
-    }
-
-    if (player.status !== "ACTIVE") {
-      return res.status(404).json({
-        success: false,
-        message: "Player not found.",
-      });
-    }
-
-    return res.status(200).json({
-      success: true,
-      player,
-    });
-  } catch (error) {
-    console.error("GET PUBLIC PLAYER ERROR:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: "Failed to retrieve player.",
-    });
-  }
-});
-
-
-
 router.post("/me/bio", playerAuth, async (req, res) => {
   try {
     const playerId = getAuthenticatedPlayerId(req);
@@ -812,5 +736,80 @@ router.get(
     }
   }
 );
+
+
+router.get("/:id", async (req, res) => {
+  try {
+    const playerId = Number(req.params.id);
+
+    if (!Number.isInteger(playerId) || playerId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid player ID.",
+      });
+    }
+
+    const player = await prisma.player.findUnique({
+      where: {
+        id: playerId,
+      },
+
+      select: {
+        id: true,
+        fullName: true,
+        username: true,
+        status: true,
+
+        category: true,
+        bio: true,
+
+        rapidRating: true,
+        blitzRating: true,
+        bulletRating: true,
+
+        rapidGain: true,
+        blitzGain: true,
+        bulletGain: true,
+
+        totalPoints: true,
+        totalRounds: true,
+
+        currentChampionTitle: true,
+        championshipWins: true,
+
+        teamId: true,
+
+        createdAt: true,
+      },
+    });
+
+    if (!player) {
+      return res.status(404).json({
+        success: false,
+        message: "Player not found.",
+      });
+    }
+
+    if (player.status !== "ACTIVE") {
+      return res.status(404).json({
+        success: false,
+        message: "Player not found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      player,
+    });
+  } catch (error) {
+    console.error("GET PUBLIC PLAYER ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retrieve player.",
+    });
+  }
+});
+
 
 module.exports = router;

@@ -51,7 +51,7 @@ enum NotificationType {
 
 enum ChampionshipType {
   TOURNAMENT
-  BULLET
+  SPECIAL
 }
 
 enum TournamentStatus {
@@ -115,10 +115,9 @@ model Player {
   tournamentResults TournamentResult[]
   tournamentWon Tournament[] @relation("TournamentChampion")
 
-  bulletChampionshipsWon BulletChampionship[] @relation("BulletChampion")
-  notifications Notification[]
+  tournamentMemberships TournamentPlayer[]
 
-  bulletMemberships BulletChampionshipPlayer[]
+  notifications Notification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -398,6 +397,8 @@ model Tournament {
 
   championUsername String?
 
+  players TournamentPlayer[]
+  
   championTitle String?
 
   startedAt  DateTime?
@@ -414,9 +415,29 @@ model Tournament {
 
   @@index([mode])
   @@index([category])
+  @@index([type])
   @@index([status])
   @@index([completedAt])
   @@index([championPlayerId])
+}
+
+
+model TournamentPlayer {
+  id Int @id @default(autoincrement())
+
+  tournamentId Int
+  playerId Int
+
+  tournament Tournament @relation(fields: [tournamentId],references: [id],onDelete: Cascade)
+
+  player Player @relation(fields: [playerId],references: [id],onDelete: Cascade)
+
+  joinedAt DateTime @default(now())
+
+  @@unique([tournamentId, playerId])
+
+  @@index([tournamentId])
+  @@index([playerId])
 }
 
 
@@ -449,58 +470,6 @@ model TournamentResult {
   @@index([playerId])
   @@index([rank])
 }
-
-
-model BulletChampionship {
-  id Int @id @default(autoincrement())
-
-  name String
-
-  status TournamentStatus @default(DRAFT)
-
-  championPlayerId Int?
-  championPlayer  Player? @relation("BulletChampion", fields: [championPlayerId], references: [id], onDelete: SetNull)
-
-  championUsername String?
-
-  startedAt   DateTime?
-  completedAt DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  players BulletChampionshipPlayer[]
-
-  @@index([status])
-  @@index([completedAt])
-  @@index([championPlayerId])
-}
-
-
-model BulletChampionshipPlayer {
-  id Int @id @default(autoincrement())
-
-  championshipId Int
-  playerId       Int
-
-  championship BulletChampionship @relation(fields: [championshipId],references: [id],onDelete: Cascade)
-
-  player Player @relation(fields: [playerId],references: [id],onDelete: Cascade )
-
-  rank Int?
-
-  totalPoints Float @default(0)
-
-  totalRounds Int @default(0)
-
-  accuracy Float @default(0)
-
-  @@unique([championshipId, playerId])
-
-  @@index([championshipId])
-  @@index([playerId])
-}
-
 
 
 model ApprovalRequest {

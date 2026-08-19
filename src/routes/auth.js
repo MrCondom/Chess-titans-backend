@@ -272,6 +272,7 @@ router.post(
               data: JSON.stringify({
                 username: cleanUsername,
                 fullName: cleanFullName,
+                passwordHash,
                 bio: cleanBio,
                 category: cleanCategory,
                 rapidRating: rapid,
@@ -492,129 +493,6 @@ router.get(
       return res.status(500).json({
         success: false,
         message: "Failed to load player profile.",
-      });
-    }
-  }
-);
-
-
-router.post(
-  "/change-password",
-  playerAuth,
-  async (req, res) => {
-    try {
-      const {
-        currentPassword,
-        newPassword,
-      } = req.body;
-
-      if (
-        typeof currentPassword !== "string" ||
-        typeof newPassword !== "string"
-      ) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Current password and new password are required.",
-        });
-      }
-
-      if (!isValidPassword(newPassword)) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "New password must be between 8 and 128 characters.",
-        });
-      }
-
-      const player = await prisma.player.findUnique({
-        where: {
-          id: req.player.id,
-        },
-
-        select: {
-          id: true,
-          username: true,
-          passwordHash: true,
-        },
-      });
-
-      if (!player || !player.passwordHash) {
-        return res.status(401).json({
-          success: false,
-          message: "Unable to verify current password.",
-        });
-      }
-
-      const currentPasswordMatches =
-        await bcrypt.compare(
-          currentPassword,
-          player.passwordHash
-        );
-
-      if (!currentPasswordMatches) {
-        return res.status(401).json({
-          success: false,
-          message: "Current password is incorrect.",
-        });
-      }
-
-      const samePassword =
-        await bcrypt.compare(
-          newPassword,
-          player.passwordHash
-        );
-
-      if (samePassword) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "New password must be different from your current password.",
-        });
-      }
-
-      const newPasswordHash =
-        await bcrypt.hash(
-          newPassword,
-          SALT_ROUNDS
-        );
-
-      const approvalRequest =
-        await prisma.approvalRequest.create({
-          data: {
-            playerId: player.id,
-
-            type: "PASSWORD_CHANGE",
-
-            status: "PENDING",
-
-            data: JSON.stringify({
-              passwordHash: newPasswordHash,
-            }),
-          },
-        });
-
-      return res.status(201).json({
-        success: true,
-
-        message:
-          "Password change submitted for admin approval.",
-
-        approvalRequest: {
-          id: approvalRequest.id,
-          status: approvalRequest.status,
-          type: approvalRequest.type,
-        },
-      });
-    } catch (error) {
-      console.error(
-        "POST /auth/change-password error:",
-        error
-      );
-
-      return res.status(500).json({
-        success: false,
-        message: "Failed to submit password change.",
       });
     }
   }

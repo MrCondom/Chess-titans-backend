@@ -86,14 +86,7 @@ async function getApprovalRequest(requestId) {
   return request;
 }
 
-/**
- * Get pending approval requests.
- *
- * @param {Object} options
- * @param {number} options.page
- * @param {number} options.limit
- * @param {string|null} options.type
- */
+
 async function getPendingApprovals({
   page = 1,
   limit = 20,
@@ -268,7 +261,7 @@ async function approveRequest(requestId, adminId) {
 
     switch (request.type) {
       case "REGISTRATION":
-        player = await approveRegistration(tx, data);
+        player = await approveRegistration(tx, request.playerId, data);
         break;
 
       case "BIO_CHANGE":
@@ -378,7 +371,8 @@ async function rejectRequest(requestId, adminId, reason = null) {
 }
 
 
-async function approveRegistration(tx, data) {
+async function approveRegistration(tx, playerId, data) {
+  ensurePlayerId(playerId);
   const {
     fullName,
     username,
