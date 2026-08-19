@@ -180,13 +180,13 @@ router.post("/me/bio", playerAuth, async (req, res) => {
       });
     }
 
-    const result = await approvalService.createRequest(
+    const result = await approvalService.createApprovalRequest({
       playerId,
-      "BIO_CHANGE",
-      {
+      type: "BIO_CHANGE",
+      data: {
         bio: cleanBio,
-      }
-    );
+      },
+    });
 
     return res.status(201).json({
       success: true,
@@ -314,13 +314,13 @@ router.post("/me/username", playerAuth, async (req, res) => {
       });
     }
 
-    const result = await approvalService.createRequest(
+    const result = await approvalService.createApprovalRequest({
       playerId,
-      "USERNAME_CHANGE",
-      {
+      type: "USERNAME_CHANGE",
+      data: {
         username: cleanUsername,
-      }
-    );
+      },
+    });
 
     return res.status(201).json({
       success: true,
@@ -459,11 +459,11 @@ router.post("/me/profile", playerAuth, async (req, res) => {
       });
     }
 
-    const result = await approvalService.createRequest(
+    const result = await approvalService.createApprovalRequest({
       playerId,
-      "PROFILE_CHANGE",
-      data
-    );
+      type: "PROFILE_CHANGE",
+      data,
+    });
 
     return res.status(201).json({
       success: true,
@@ -601,13 +601,13 @@ router.post("/me/password", playerAuth, async (req, res) => {
       12
     );
 
-    const result = await approvalService.createRequest(
+    const result = await approvalService.createApprovalRequest({
       playerId,
-      "PASSWORD_CHANGE",
-      {
+      type: "PASSWORD_CHANGE",
+      data: {
         passwordHash: newPasswordHash,
-      }
-    );
+      },
+    });
 
     return res.status(201).json({
       success: true,

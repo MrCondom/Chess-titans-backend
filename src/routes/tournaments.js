@@ -8,25 +8,7 @@ const playerAuth = require("../middleware/playerAuth");
 const adminAuth = require("../middleware/adminAuth");
 
 
-/*
-|--------------------------------------------------------------------------
-| PUBLIC / AUTHENTICATED TOURNAMENT READ ROUTES
-|--------------------------------------------------------------------------
-*/
 
-
-/**
- * GET /api/tournaments
- *
- * Filters:
- *
- * ?status=ACTIVE
- * ?mode=RAPID
- * ?type=TOURNAMENT
- * ?category=Open
- * ?page=1
- * ?limit=20
- */
 router.get(
   "/",
   async (req, res) => {
@@ -62,9 +44,6 @@ router.get(
 );
 
 
-/**
- * GET /api/tournaments/:id
- */
 router.get(
   "/:id",
   async (req, res) => {
@@ -99,10 +78,6 @@ router.get(
   }
 );
 
-
-/**
- * GET /api/tournaments/:id/standings
- */
 router.get(
   "/:id/standings",
   async (req, res) => {
@@ -132,9 +107,6 @@ router.get(
 );
 
 
-/**
- * GET /api/tournaments/player/:playerId
- */
 router.get(
   "/player/:playerId",
   async (req, res) => {
@@ -167,19 +139,6 @@ router.get(
   }
 );
 
-
-/*
-|--------------------------------------------------------------------------
-| ADMIN ROUTES
-|--------------------------------------------------------------------------
-*/
-
-
-/**
- * POST /api/tournaments
- *
- * Create tournament.
- */
 router.post(
   "/",
   adminAuth,
@@ -222,9 +181,6 @@ router.post(
 );
 
 
-/**
- * POST /api/tournaments/:id/start
- */
 router.post(
   "/:id/start",
   adminAuth,
@@ -256,12 +212,6 @@ router.post(
   }
 );
 
-
-/**
- * POST /api/tournaments/:id/players
- *
- * Register a player.
- */
 router.post(
   "/:id/players",
   adminAuth,
@@ -299,9 +249,6 @@ router.post(
 );
 
 
-/**
- * DELETE /api/tournaments/:id/players/:playerId
- */
 router.delete(
   "/:id/players/:playerId",
   adminAuth,
@@ -335,11 +282,6 @@ router.delete(
 );
 
 
-/**
- * PATCH /api/tournaments/:id/players/:playerId
- *
- * Update tournament statistics.
- */
 router.patch(
   "/:id/players/:playerId",
   adminAuth,
@@ -390,9 +332,6 @@ router.patch(
 );
 
 
-/**
- * POST /api/tournaments/:id/standings/save
- */
 router.post(
   "/:id/standings/save",
   adminAuth,
@@ -425,9 +364,6 @@ router.post(
 );
 
 
-/**
- * POST /api/tournaments/:id/complete
- */
 router.post(
   "/:id/complete",
   adminAuth,
@@ -460,9 +396,6 @@ router.post(
 );
 
 
-/**
- * POST /api/tournaments/:id/cancel
- */
 router.post(
   "/:id/cancel",
   adminAuth,

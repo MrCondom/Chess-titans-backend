@@ -373,12 +373,16 @@ async function rejectRequest(requestId, adminId, reason = null) {
 
 async function approveRegistration(tx, playerId, data) {
   ensurePlayerId(playerId);
+
   const {
     fullName,
     username,
     passwordHash,
     category = "",
     bio = "",
+    rapidRating = 0,
+    blitzRating = 0,
+    bulletRating = 0,
   } = data;
 
   if (!fullName || !username || !passwordHash) {
@@ -393,13 +397,40 @@ async function approveRegistration(tx, playerId, data) {
 
   const normalizedUsername = normalizeUsername(username);
 
+  const player = await tx.player.findUnique({
+    where: {
+      id: playerId,
+    },
+  });
+
+  if (!player) {
+    const error = new Error("Player account not found");
+
+    error.code = "PLAYER_NOT_FOUND";
+
+    throw error;
+  }
+
+  if (player.status === "ACTIVE") {
+    const error = new Error(
+      "Player account is already active"
+    );
+
+    error.code = "PLAYER_ALREADY_ACTIVE";
+
+    throw error;
+  }
+
   const existingPlayer = await tx.player.findUnique({
     where: {
       username: normalizedUsername,
     },
   });
 
-  if (existingPlayer) {
+  if (
+    existingPlayer &&
+    existingPlayer.id !== playerId
+  ) {
     const error = new Error(
       "Username is already in use"
     );
@@ -409,15 +440,41 @@ async function approveRegistration(tx, playerId, data) {
     throw error;
   }
 
-  return tx.player.create({
+  return tx.player.update({
+    where: {
+      id: playerId,
+    },
+
     data: {
       fullName: fullName.trim(),
       username: normalizedUsername,
       passwordHash,
-      category: typeof category === "string" ? category.trim() : "",
-      bio: typeof bio === "string" ? bio.trim() : "",
+
+      category:
+        typeof category === "string"
+          ? category.trim()
+          : "",
+
+      bio:
+        typeof bio === "string"
+          ? bio.trim()
+          : "",
+
+      rapidRating: Number.isInteger(rapidRating)
+        ? rapidRating
+        : 0,
+
+      blitzRating: Number.isInteger(blitzRating)
+        ? blitzRating
+        : 0,
+
+      bulletRating: Number.isInteger(bulletRating)
+        ? bulletRating
+        : 0,
+
       status: "ACTIVE",
     },
+
     select: {
       id: true,
       fullName: true,
@@ -425,7 +482,25 @@ async function approveRegistration(tx, playerId, data) {
       status: true,
       category: true,
       bio: true,
+
+      rapidRating: true,
+      blitzRating: true,
+      bulletRating: true,
+
+      rapidGain: true,
+      blitzGain: true,
+      bulletGain: true,
+
+      totalPoints: true,
+      totalRounds: true,
+
+      currentChampionTitle: true,
+      championshipWins: true,
+
+      teamId: true,
+
       createdAt: true,
+      updatedAt: true,
     },
   });
 }

@@ -2,7 +2,7 @@ const prisma = require("../lib/prisma");
 const notificationService = require("./notificationService");
 
 const VALID_MODES = ["RAPID", "BLITZ", "BULLET"];
-const VALID_TYPES = ["TOURNAMENT", "BULLET"];
+const VALID_TYPES = ["TOURNAMENT", "SPECIAL"];
 
 const VALID_STATUSES = [
   "DRAFT",
@@ -492,7 +492,6 @@ async function registerPlayer(
           data: {
             tournamentId,
             playerId,
-
             rank: 0,
 
             totalPoints: 0,
@@ -1091,8 +1090,8 @@ async function completeTournament(
 
         const championTitle =
           tournament.type ===
-          "BULLET"
-            ? "Bullet Champion"
+          "SPECIAL"
+            ? "Special Champion"
             : "Tournament Champion";
 
         const completed =
