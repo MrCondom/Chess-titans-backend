@@ -4,56 +4,46 @@ function shuffle(array) {
   for (let i = result.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
 
-    [result[i], result[j]] = [result[j], result[i]];
+    [result[i], result[j]] = [
+      result[j],
+      result[i],
+    ];
   }
 
   return result;
 }
 
-/**
- * Generate pairings for players.
- *
- * @param {Array} players
- * @param {number} rounds
- * @returns {Array}
- */
-function generatePairings(players, rounds = 5) {
+
+function generateRoundPairings(players) {
   if (!Array.isArray(players) || players.length < 2) {
     throw new Error("At least two players are required.");
   }
 
+  const shuffled = shuffle(players);
+
   const pairings = [];
 
-  const shuffledPlayers = shuffle(players);
+  for (let i = 0; i < shuffled.length - 1; i += 2) {
+    const playerA = shuffled[i];
+    const playerB = shuffled[i + 1];
 
-  for (let round = 1; round <= rounds; round++) {
-    const roundPairings = [];
+    const whiteFirst = Math.random() < 0.5;
 
-    const roundPlayers = shuffle(shuffledPlayers);
+    pairings.push({
+      whitePlayerId: whiteFirst
+        ? playerA.id
+        : playerB.id,
 
-    for (let i = 0; i < roundPlayers.length - 1; i += 2) {
-      const playerA = roundPlayers[i];
-      const playerB = roundPlayers[i + 1];
-
-      // Randomly determine white/black
-      const whiteFirst = Math.random() < 0.5;
-
-      const white = whiteFirst ? playerA : playerB;
-      const black = whiteFirst ? playerB : playerA;
-
-      roundPairings.push({
-        round,
-        whitePlayerId: white.id,
-        blackPlayerId: black.id,
-      });
-    }
-
-    pairings.push(...roundPairings);
+      blackPlayerId: whiteFirst
+        ? playerB.id
+        : playerA.id,
+    });
   }
 
   return pairings;
 }
 
+
 module.exports = {
-  generatePairings,
+  generateRoundPairings,
 };

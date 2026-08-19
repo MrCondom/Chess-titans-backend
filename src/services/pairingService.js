@@ -64,6 +64,33 @@ async function hasExistingPairing(
   return !!existing;
 }
 
+async function hasPlayedBefore(
+  category,
+  mode,
+  playerAId,
+  playerBId
+) {
+  const existing = await prisma.pairing.findFirst({
+    where: {
+      category,
+      mode,
+
+      OR: [
+        {
+          whitePlayerId: playerAId,
+          blackPlayerId: playerBId,
+        },
+        {
+          whitePlayerId: playerBId,
+          blackPlayerId: playerAId,
+        },
+      ],
+    },
+  });
+
+  return !!existing;
+}
+
 
 function shufflePlayers(players) {
   const shuffled = [...players];

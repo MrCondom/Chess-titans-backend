@@ -1,4 +1,3 @@
-Championship.js
 const express = require("express");
 
 const router = express.Router();
@@ -9,11 +8,7 @@ const playerAuth = require("../middleware/playerAuth");
 const championshipService = require("../services/championshipService");
 
 
-/*
- * GET /championships
- *
- * Public/player-accessible list.
- */
+
 router.get("/", async (req, res) => {
   try {
     const result =
@@ -39,9 +34,6 @@ router.get("/", async (req, res) => {
 });
 
 
-/*
- * GET /championships/:id
- */
 router.get("/:id", async (req, res) => {
   try {
     const championship =
@@ -69,12 +61,6 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-
-/*
- * ADMIN
- *
- * POST /championships
- */
 router.post("/", adminAuth, async (req, res) => {
   try {
     const championship =
@@ -98,11 +84,6 @@ router.post("/", adminAuth, async (req, res) => {
 });
 
 
-/*
- * ADMIN
- *
- * POST /championships/:id/players
- */
 router.post(
   "/:id/players",
   adminAuth,
@@ -131,11 +112,6 @@ router.post(
 );
 
 
-/*
- * ADMIN
- *
- * DELETE /championships/:id/players/:playerId
- */
 router.delete(
   "/:id/players/:playerId",
   adminAuth,
@@ -161,11 +137,6 @@ router.delete(
 );
 
 
-/*
- * ADMIN
- *
- * POST /championships/:id/start
- */
 router.post(
   "/:id/start",
   adminAuth,
@@ -193,11 +164,6 @@ router.post(
 );
 
 
-/*
- * ADMIN
- *
- * PATCH /championships/:id/players/:playerId
- */
 router.patch(
   "/:id/players/:playerId",
   adminAuth,
@@ -231,11 +197,6 @@ router.patch(
 );
 
 
-/*
- * ADMIN
- *
- * POST /championships/:id/complete
- */
 router.post(
   "/:id/complete",
   adminAuth,
@@ -267,11 +228,6 @@ router.post(
 );
 
 
-/*
- * ADMIN
- *
- * POST /championships/:id/cancel
- */
 router.post(
   "/:id/cancel",
   adminAuth,
