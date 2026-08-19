@@ -72,11 +72,11 @@ enum MembershipStatus {
 
 model Player {
   id       Int    @id @default(autoincrement())
-  fullName String
+  fullName String @default("")
   username String @unique
   passwordHash String?
 
-  status PlayerStatus @default(ACTIVE)
+  status PlayerStatus @default(UNREGISTERED)
 
   category String @default("")
   bio      String @default("")
@@ -168,6 +168,8 @@ model TeamMembership {
 
   teamId   Int
   playerId Int
+
+  boardPosition Int?
 
   team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
   player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
