@@ -1,5 +1,4 @@
 const prisma = require("../lib/prisma");
-const notificationService = require("./notificationService");
 
 const VALID_MODES = ["RAPID", "BLITZ", "BULLET"];
 
@@ -43,12 +42,6 @@ async function calculateRankings({
   const rankingData = [];
 
   for (const player of players) {
-    const stats =
-      await calculatePlayerStats({
-        playerId: player.id,
-        mode,
-        category,
-      });
 
     
     let rating = 0;
@@ -73,20 +66,9 @@ async function calculateRankings({
   }
 
   rankingData.sort((a, b) => {
-    if (b.totalPoints !== a.totalPoints) {
-      return b.totalPoints - a.totalPoints;
-    }
-
-    if (b.accuracy !== a.accuracy) {
-      return b.accuracy - a.accuracy;
-    }
 
     if (b.rating !== a.rating) {
       return b.rating - a.rating;
-    }
-
-    if (b.totalRounds !== a.totalRounds) {
-      return b.totalRounds - a.totalRounds;
     }
 
     return a.player.username.localeCompare(
@@ -182,15 +164,6 @@ async function calculateRankings({
     mode,
 
     rank: item.rank,
-
-    totalPoints: item.totalPoints,
-    totalRounds: item.totalRounds,
-
-    accuracy: item.accuracy,
-
-    wins: item.wins,
-    draws: item.draws,
-    losses: item.losses,
 
     rating: item.rating,
   }));
