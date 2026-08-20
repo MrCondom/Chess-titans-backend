@@ -296,6 +296,14 @@ async function approveRequest(requestId, adminId) {
         );
         break;
 
+        case "RATING_CHANGE":
+          player = await approveRatingChange(
+            tx,
+            request.playerId,
+            data
+          );
+          break;
+
       default: {
         const error = new Error(
           `Unsupported approval type: ${request.type}`
@@ -377,7 +385,6 @@ async function approveRegistration(tx, playerId, data) {
   const {
     fullName,
     username,
-    passwordHash,
     category = "",
     bio = "",
     rapidRating = 0,
@@ -385,7 +392,7 @@ async function approveRegistration(tx, playerId, data) {
     bulletRating = 0,
   } = data;
 
-  if (!fullName || !username || !passwordHash) {
+  if (!fullName || !username ) {
     const error = new Error(
       "Registration approval data is incomplete"
     );
@@ -448,7 +455,6 @@ async function approveRegistration(tx, playerId, data) {
     data: {
       fullName: fullName.trim(),
       username: normalizedUsername,
-      passwordHash,
 
       category:
         typeof category === "string"
@@ -493,9 +499,11 @@ async function approveRegistration(tx, playerId, data) {
 
       totalPoints: true,
       totalRounds: true,
+      totalWins: true,
+      totalDraws: true,
+      totalLosses: true,
 
-      currentChampionTitle: true,
-      championshipWins: true,
+      tournamentWins: true,
 
       teamId: true,
 
@@ -615,6 +623,49 @@ async function approveProfileChange(tx, playerId, data) {
 }
 
 
+async function approveRatingChange(tx, playerId, data) {
+  ensurePlayerId(playerId);
+
+  const updateData = {};
+
+  if (data.rapidRating !== undefined) {
+    if (!Number.isInteger(data.rapidRating)) {
+      throw new Error("Invalid rapid rating");
+    }
+
+    updateData.rapidRating = data.rapidRating;
+  }
+
+  if (data.blitzRating !== undefined) {
+    if (!Number.isInteger(data.blitzRating)) {
+      throw new Error("Invalid blitz rating");
+    }
+
+    updateData.blitzRating = data.blitzRating;
+  }
+
+  if (data.bulletRating !== undefined) {
+    if (!Number.isInteger(data.bulletRating)) {
+      throw new Error("Invalid bullet rating");
+    }
+
+    updateData.bulletRating = data.bulletRating;
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    const error = new Error("No valid rating changes supplied");
+    error.code = "INVALID_APPROVAL_DATA";
+    throw error;
+  }
+
+  return updateExistingPlayer(
+    tx,
+    playerId,
+    updateData
+  );
+}
+
+
 async function approvePasswordChange(tx, playerId, data) {
   ensurePlayerId(playerId);
 
@@ -667,17 +718,25 @@ async function updateExistingPlayer(tx, playerId, data) {
       status: true,
       category: true,
       bio: true,
+      
       rapidRating: true,
       blitzRating: true,
       bulletRating: true,
+      
       rapidGain: true,
       blitzGain: true,
       bulletGain: true,
+      
       totalPoints: true,
       totalRounds: true,
-      currentChampionTitle: true,
-      championshipWins: true,
+      totalWins: true,
+      totalDraws: true,
+      totalLosses: true,
+      
+      tournamentWins: true,
+      
       teamId: true,
+      
       createdAt: true,
       updatedAt: true,
     },

@@ -215,9 +215,9 @@ router.post(
             category: cleanCategory,
             bio: cleanBio,
 
-            rapidRating: rapid,
-            blitzRating: blitz,
-            bulletRating: bullet,
+            rapidRating: 0,
+            blitzRating: 0,
+            bulletRating: 0,
 
             rapidGain: 0,
             blitzGain: 0,
