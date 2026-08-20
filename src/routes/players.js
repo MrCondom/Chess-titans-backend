@@ -7,8 +7,6 @@ const prisma = require("../lib/prisma");
 const playerAuth = require("../middleware/playerAuth");
 const approvalService = require("../services/approvalService");
 
-const notificationService = require("../services/notificationService")
-
 
 const playerSelect = {
   id: true,
@@ -29,9 +27,11 @@ const playerSelect = {
 
   totalPoints: true,
   totalRounds: true,
+  totalWins: true,
+  totalDraws: true,
+  totalLosses: true,
 
-  currentChampionTitle: true,
-  championshipWins: true,
+  tournamentWins: true,
 
   teamId: true,
 
