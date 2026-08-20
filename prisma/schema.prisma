@@ -102,7 +102,7 @@ model Player {
   totalLosses Int @default(0)
   totalDraws Int @default(0)
 
-  championshipWins     Int @default(0)
+  tournamentWins     Int @default(0)
 
   teamId Int?
   team Team? @relation("PlayerTeam",fields: [teamId],references: [id],onDelete: SetNull)
