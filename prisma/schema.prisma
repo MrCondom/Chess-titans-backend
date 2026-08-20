@@ -7,7 +7,6 @@ datasource db {
   url      = "file:../dev.db"
 }
 
-
 enum PlayerStatus {
   UNREGISTERED
   ACTIVE
@@ -76,11 +75,10 @@ enum MembershipStatus {
   INACTIVE
 }
 
-
 model Player {
-  id       Int    @id @default(autoincrement())
-  fullName String @default("")
-  username String @unique
+  id           Int     @id @default(autoincrement())
+  fullName     String  @default("")
+  username     String  @unique
   passwordHash String?
 
   status PlayerStatus @default(UNREGISTERED)
@@ -98,17 +96,16 @@ model Player {
 
   totalPoints Float @default(0)
   totalRounds Int   @default(0)
-  totalWins Int @default(0)
-  totalLosses Int @default(0)
-  totalDraws Int @default(0)
+  totalWins   Int   @default(0)
+  totalLosses Int   @default(0)
+  totalDraws  Int   @default(0)
 
-  tournamentWins     Int @default(0)
+  tournamentWins Int @default(0)
 
   teamId Int?
-  team Team? @relation("PlayerTeam",fields: [teamId],references: [id],onDelete: SetNull)
-  
-  captainOfTeam Team? @relation("TeamCaptain")
+  team   Team? @relation("PlayerTeam", fields: [teamId], references: [id], onDelete: SetNull)
 
+  captainOfTeam Team? @relation("TeamCaptain")
 
   whitePairings Pairing[] @relation("WhitePlayer")
   blackPairings Pairing[] @relation("BlackPlayer")
@@ -128,7 +125,7 @@ model Player {
   approvalRequests ApprovalRequest[]
 
   tournamentResults TournamentResult[]
-  tournamentWon Tournament[] @relation("TournamentChampion")
+  tournamentWon     Tournament[]       @relation("TournamentChampion")
 
   tournamentMemberships TournamentPlayer[]
 
@@ -143,7 +140,6 @@ model Player {
   @@index([fullName])
 }
 
-
 model Team {
   id          Int    @id @default(autoincrement())
   name        String @unique
@@ -151,7 +147,7 @@ model Team {
 
   captainId Int? @unique
 
-  captain Player? @relation("TeamCaptain", fields:[captainId],references:[id],onDelete: SetNull)
+  captain Player? @relation("TeamCaptain", fields: [captainId], references: [id], onDelete: SetNull)
 
   players Player[] @relation("PlayerTeam")
 
@@ -174,7 +170,6 @@ model Team {
   @@index([captainId])
 }
 
-
 model TeamMembership {
   id Int @id @default(autoincrement())
 
@@ -188,8 +183,8 @@ model TeamMembership {
 
   status MembershipStatus @default(ACTIVE)
 
-  joinedAt  DateTime  @default(now())
-  leftAt    DateTime?
+  joinedAt DateTime  @default(now())
+  leftAt   DateTime?
 
   @@unique([teamId, playerId])
   @@index([teamId])
@@ -197,7 +192,6 @@ model TeamMembership {
   @@index([status])
   @@index([teamId, boardPosition])
 }
-
 
 model Pairing {
   id Int @id @default(autoincrement())
@@ -207,14 +201,14 @@ model Pairing {
   mode     GameMode
 
   tournamentId Int?
-  tournament Tournament? @relation(fields: [tournamentId], references: [id], onDelete: SetNull)
+  tournament   Tournament? @relation(fields: [tournamentId], references: [id], onDelete: SetNull)
 
   whitePlayerId Int
   blackPlayerId Int
 
-  whitePlayer Player @relation("WhitePlayer",fields: [whitePlayerId],references: [id],onDelete: Cascade)
+  whitePlayer Player @relation("WhitePlayer", fields: [whitePlayerId], references: [id], onDelete: Cascade)
 
-  blackPlayer Player @relation("BlackPlayer",fields: [blackPlayerId],references: [id],onDelete: Cascade)
+  blackPlayer Player @relation("BlackPlayer", fields: [blackPlayerId], references: [id], onDelete: Cascade)
 
   availableAt DateTime
 
@@ -223,7 +217,6 @@ model Pairing {
   result GameResult?
 
   ratingGains RatingGain[]
-
 
   @@index([category])
   @@index([round])
@@ -234,7 +227,6 @@ model Pairing {
   @@index([tournamentId])
 }
 
-
 model TeamPairing {
   id Int @id @default(autoincrement())
 
@@ -244,36 +236,34 @@ model TeamPairing {
   teamBId Int
 
   tournamentId Int
-  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 
   games TeamGame[]
 
-  teamA Team @relation("TeamA",fields: [teamAId],references: [id],onDelete: Cascade )
+  teamA Team @relation("TeamA", fields: [teamAId], references: [id], onDelete: Cascade)
 
-  teamB Team @relation("TeamB",fields: [teamBId],references: [id],onDelete: Cascade)
+  teamB Team @relation("TeamB", fields: [teamBId], references: [id], onDelete: Cascade)
 
   availableAt DateTime
 
   createdAt DateTime @default(now())
 
   @@unique([tournamentId, round, teamAId, teamBId])
-
   @@index([round])
   @@index([teamAId])
   @@index([teamBId])
   @@index([availableAt])
 }
 
-
 model TeamGame {
   id Int @id @default(autoincrement())
-  
+
   teamPairingId Int
-  boardPosition  Int
-  
+  boardPosition Int
+
   whitePlayerId Int
   blackPlayerId Int
-  
+
   result Int
 
   teamPairing TeamPairing @relation(fields: [teamPairingId], references: [id], onDelete: Cascade)
@@ -286,9 +276,7 @@ model TeamGame {
   @@index([teamPairingId])
   @@index([whitePlayerId])
   @@index([blackPlayerId])
-  
-
-  }
+}
 
 model GameResult {
   id Int @id @default(autoincrement())
@@ -299,9 +287,9 @@ model GameResult {
   whitePlayerId Int
   blackPlayerId Int
 
-  whitePlayer Player @relation("WhitePlayerResults",fields: [whitePlayerId],references: [id],onDelete: Cascade)
+  whitePlayer Player @relation("WhitePlayerResults", fields: [whitePlayerId], references: [id], onDelete: Cascade)
 
-  blackPlayer Player @relation("BlackPlayerResults",fields: [blackPlayerId],references: [id],onDelete: Cascade)
+  blackPlayer Player @relation("BlackPlayerResults", fields: [blackPlayerId], references: [id], onDelete: Cascade)
 
   whiteScore Float
   blackScore Float
@@ -323,7 +311,7 @@ model GameResult {
 
   pairingId Int? @unique
 
-  pairing Pairing? @relation(fields: [pairingId],references: [id],onDelete: SetNull)
+  pairing Pairing? @relation(fields: [pairingId], references: [id], onDelete: SetNull)
 
   date DateTime @default(now())
 
@@ -336,20 +324,19 @@ model GameResult {
   @@index([blackPlayerId])
 }
 
-
 model RatingGain {
   id Int @id @default(autoincrement())
 
   playerId Int
 
-  player Player @relation(fields: [playerId],references: [id],onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
   pairingId Int?
 
-  pairing Pairing? @relation(fields: [pairingId],references: [id],onDelete: SetNull)
+  pairing Pairing? @relation(fields: [pairingId], references: [id], onDelete: SetNull)
 
   approvalStatus ApprovalStatus @default(PENDING)
-  approvedAt DateTime?
+  approvedAt     DateTime?
 
   approvedByAdminId Int?
 
@@ -373,14 +360,12 @@ model RatingGain {
   @@index([createdAt])
 }
 
-
-
 model PlayerRanking {
   id Int @id @default(autoincrement())
 
   playerId Int
 
-  player Player @relation(fields: [playerId],references: [id],onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
   category String
   mode     GameMode
@@ -396,7 +381,7 @@ model PlayerRanking {
 
   tournamentId Int?
 
-  tournament Tournament? @relation(fields: [tournamentId], references: [id],onDelete: Cascade)
+  tournament Tournament? @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 
   month Int?
   year  Int?
@@ -411,13 +396,12 @@ model PlayerRanking {
   @@index([year, month])
 }
 
-
 model TeamRanking {
   id Int @id @default(autoincrement())
 
   teamId Int
 
-  team Team @relation(fields: [teamId],references: [id], onDelete: Cascade)
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   category String?
   mode     GameMode?
@@ -431,7 +415,7 @@ model TeamRanking {
 
   tournamentId Int?
 
-  tournament Tournament? @relation(fields: [tournamentId],references: [id],onDelete: Cascade)
+  tournament Tournament? @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 
@@ -443,8 +427,6 @@ model TeamRanking {
   @@index([year, month])
 }
 
-
-
 model Tournament {
   id Int @id @default(autoincrement())
 
@@ -454,23 +436,23 @@ model Tournament {
 
   mode GameMode
 
-  type TournamentType @default(CATEGORY)
+  type   TournamentType   @default(CATEGORY)
   format TournamentFormat @default(SWISS)
 
   status TournamentStatus @default(DRAFT)
 
-  championPlayerId Int? 
-  championPlayer Player? @relation("TournamentChampion", fields: [championPlayerId], references: [id], onDelete: SetNull)
+  championPlayerId Int?
+  championPlayer   Player? @relation("TournamentChampion", fields: [championPlayerId], references: [id], onDelete: SetNull)
 
   championUsername String?
 
   teamPairings TeamPairing[]
+  pairings     Pairing[]
+  players      TournamentPlayer[]
 
-  players TournamentPlayer[]
-  
   championTitle String?
 
-  startedAt  DateTime?
+  startedAt   DateTime?
   completedAt DateTime?
 
   createdAt DateTime @default(now())
@@ -490,25 +472,22 @@ model Tournament {
   @@index([championPlayerId])
 }
 
-
 model TournamentPlayer {
   id Int @id @default(autoincrement())
 
   tournamentId Int
-  playerId Int
+  playerId     Int
 
-  tournament Tournament @relation(fields: [tournamentId],references: [id],onDelete: Cascade)
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 
-  player Player @relation(fields: [playerId],references: [id],onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
   joinedAt DateTime @default(now())
 
   @@unique([tournamentId, playerId])
-
   @@index([tournamentId])
   @@index([playerId])
 }
-
 
 model TournamentResult {
   id Int @id @default(autoincrement())
@@ -516,9 +495,9 @@ model TournamentResult {
   tournamentId Int
   playerId     Int
 
-  tournament Tournament @relation(fields: [tournamentId],references: [id],onDelete: Cascade )
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 
-  player Player @relation(fields: [playerId],references: [id],onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
   rank Int
 
@@ -534,19 +513,17 @@ model TournamentResult {
   createdAt DateTime @default(now())
 
   @@unique([tournamentId, playerId])
-
   @@index([tournamentId])
   @@index([playerId])
   @@index([rank])
 }
-
 
 model ApprovalRequest {
   id Int @id @default(autoincrement())
 
   playerId Int?
 
-  player Player? @relation(fields: [playerId],references: [id],onDelete: Cascade)
+  player Player? @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
   type ApprovalType
 
@@ -569,13 +546,12 @@ model ApprovalRequest {
   @@index([createdAt])
 }
 
-
 model Notification {
   id Int @id @default(autoincrement())
 
   playerId Int?
 
-  player Player? @relation(fields: [playerId],references: [id],onDelete: Cascade)
+  player Player? @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
   type NotificationType
 
@@ -605,7 +581,6 @@ model Announcement {
   @@index([isActive])
 }
 
-
 model Admin {
   id Int @id @default(autoincrement())
 
@@ -628,13 +603,12 @@ model Admin {
   @@index([ipAddress])
 }
 
-
 model AdminLoginLog {
   id Int @id @default(autoincrement())
 
   adminId Int
 
-  admin Admin @relation(fields: [adminId],references: [id],onDelete: Cascade )
+  admin Admin @relation(fields: [adminId], references: [id], onDelete: Cascade)
 
   ipAddress String
 
@@ -646,7 +620,6 @@ model AdminLoginLog {
   @@index([ipAddress])
   @@index([loginAt])
 }
-
 
 model BlockedIP {
   id Int @id @default(autoincrement())
