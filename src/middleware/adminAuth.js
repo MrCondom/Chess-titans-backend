@@ -1,16 +1,16 @@
 const jwt = require("jsonwebtoken");
 const prisma = require("../lib/prisma");
 
+const JWT_SECRET = process.env.JWT_SECRET
+
+if (!JWT_SECRET) {
+  throw new Error("JWT_SECRET is not configured");
+}
 
 function getClientIp(req) {
   const forwarded = req.headers["x-forwarded-for"];
 
-  if (forwarded) {
-    return forwarded
-      .split(",")[0]
-      .trim();
-  }
-
+  
   return (
     req.socket?.remoteAddress ||
     req.ip ||
@@ -41,11 +41,6 @@ async function adminAuth(req, res, next) {
   try {
     const ipAddress = getClientIp(req);
 
-    /*
-    |--------------------------------------------------------------------------
-    | CHECK BLOCKED IP
-    |--------------------------------------------------------------------------
-    */
 
     if (await isBlockedIP(ipAddress)) {
       return res.status(403).json({
@@ -54,12 +49,6 @@ async function adminAuth(req, res, next) {
       });
     }
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | GET TOKEN
-    |--------------------------------------------------------------------------
-    */
 
     const authHeader =
       req.headers.authorization || "";
@@ -85,18 +74,12 @@ async function adminAuth(req, res, next) {
     }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | VERIFY TOKEN
-    |--------------------------------------------------------------------------
-    */
-
     let decoded;
 
     try {
       decoded = jwt.verify(
         token,
-        process.env.JWT_SECRET
+        JWT_SECRET
       );
     } catch (error) {
       return res.status(401).json({
@@ -117,12 +100,6 @@ async function adminAuth(req, res, next) {
     }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | FIND ADMIN
-    |--------------------------------------------------------------------------
-    */
-
     const admin =
       await prisma.admin.findUnique({
         where: {
@@ -139,12 +116,6 @@ async function adminAuth(req, res, next) {
     }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | CHECK ADMIN STATUS
-    |--------------------------------------------------------------------------
-    */
-
     if (admin.status !== "ACTIVE") {
       return res.status(403).json({
         success: false,
@@ -152,12 +123,6 @@ async function adminAuth(req, res, next) {
       });
     }
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | ATTACH ADMIN TO REQUEST
-    |--------------------------------------------------------------------------
-    */
 
     req.admin = {
       id: admin.id,

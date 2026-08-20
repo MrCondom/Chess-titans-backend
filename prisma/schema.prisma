@@ -47,7 +47,6 @@ enum NotificationType {
   PAIRING
   RESULT
   RANKING
-  CHAMPIONSHIP
   SYSTEM
 }
 
@@ -151,11 +150,7 @@ model Team {
 
   players Player[] @relation("PlayerTeam")
 
-  totalPoints Int @default(0)
-
-  rapidGain  Int @default(0)
-  blitzGain  Int @default(0)
-  bulletGain Int @default(0)
+  totalPoints Float @default(0)
 
   memberships TeamMembership[]
 

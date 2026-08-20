@@ -81,7 +81,7 @@ function createPlayerToken(player) {
     {
       playerId: player.id,
       username: player.username,
-      type: "PLAYER",
+      type: "player",
     },
     process.env.JWT_SECRET,
     {
@@ -111,8 +111,7 @@ function publicPlayer(player) {
     totalPoints: player.totalPoints,
     totalRounds: player.totalRounds,
 
-    currentChampionTitle: player.currentChampionTitle,
-    championshipWins: player.championshipWins,
+    tournamentWins: player.tournamentWins,
 
     teamId: player.teamId,
 
@@ -133,9 +132,6 @@ router.post(
         fullName,
         bio,
         category,
-        rapidRating,
-        blitzRating,
-        bulletRating,
       } = req.body;
 
       const cleanUsername = normalizeUsername(username);
@@ -201,36 +197,6 @@ router.post(
         });
       }
 
-      const rapid = rapidRating === undefined
-        ? 0
-        : Number(rapidRating);
-
-      const blitz = blitzRating === undefined
-        ? 0
-        : Number(blitzRating);
-
-      const bullet = bulletRating === undefined
-        ? 0
-        : Number(bulletRating);
-
-      if (
-        !Number.isInteger(rapid) ||
-        !Number.isInteger(blitz) ||
-        !Number.isInteger(bullet)
-      ) {
-        return res.status(400).json({
-          success: false,
-          message: "Ratings must be whole numbers.",
-        });
-      }
-
-      if (rapid < 0 || blitz < 0 || bullet < 0) {
-        return res.status(400).json({
-          success: false,
-          message: "Ratings cannot be negative.",
-        });
-      }
-
       const passwordHash = await bcrypt.hash(
         password,
         SALT_ROUNDS
@@ -272,12 +238,8 @@ router.post(
               data: JSON.stringify({
                 username: cleanUsername,
                 fullName: cleanFullName,
-                passwordHash,
                 bio: cleanBio,
                 category: cleanCategory,
-                rapidRating: rapid,
-                blitzRating: blitz,
-                bulletRating: bullet,
               }),
             },
           });
