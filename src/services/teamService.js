@@ -426,19 +426,12 @@ async function deleteTeam(teamId) {
       id: teamId,
     },
 
-    include: {
-      players: {
+  
+      
         select: {
           id: true,
+          captainId: true
         },
-      },
-
-      captain: {
-        select: {
-          id: true,
-        },
-      },
-    },
   });
 
   if (!team) {
@@ -456,6 +449,22 @@ async function deleteTeam(teamId) {
       data: {
         teamId: null,
       },
+    });
+
+    await tx.team.update({
+      where: {
+        id: teamId,
+      },
+
+      data: {
+        captainId: null,
+      },
+    });
+
+    await tx.teamMembership.deleteMany({
+      where: {
+        teamId: teamId
+      }
     });
 
     await tx.team.delete({

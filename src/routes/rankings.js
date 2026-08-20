@@ -5,7 +5,7 @@ const router = express.Router();
 const rankingService = require("../services/rankingService");
 
 const playerAuth = require("../middleware/playerAuth");
-const adminAuth = require("../middleware/adminAuth");
+
 
 
 
@@ -42,13 +42,6 @@ router.get("/", async (req, res) => {
 });
 
 
-/**
- * GET MY RANKING
- *
- * Authenticated player only.
- *
- * GET /api/rankings/me?category=Open&mode=RAPID
- */
 router.get(
   "/me",
   playerAuth,
@@ -97,14 +90,6 @@ router.get(
 );
 
 
-/**
- * GET PLAYER RANKING
- *
- * Authenticated player.
- *
- * A player can inspect another player's
- * public ranking.
- */
 router.get(
   "/player/:playerId",
   playerAuth,
@@ -149,57 +134,6 @@ router.get(
   }
 );
 
-
-/**
- * ADMIN: RECALCULATE RANKINGS
- *
- * POST
- * /api/rankings/recalculate
- *
- * Body:
- *
- * {
- *   "category": "Open",
- *   "mode": "RAPID"
- * }
- */
-router.post(
-  "/recalculate",
-  adminAuth,
-  async (req, res) => {
-    try {
-      const {
-        category,
-        mode,
-      } = req.body;
-
-      const rankings =
-        await rankingService.calculateRankings({
-          category,
-          mode,
-        });
-
-      res.json({
-        success: true,
-        message:
-          "Rankings recalculated successfully.",
-        count: rankings.length,
-        rankings,
-      });
-
-    } catch (error) {
-      console.error(
-        "RECALCULATE RANKINGS ERROR:",
-        error
-      );
-
-      res.status(400).json({
-        success: false,
-        message: error.message,
-      });
-    }
-  }
-);
 
 
 module.exports = router;

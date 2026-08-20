@@ -12,163 +12,7 @@ function validateMode(mode) {
 }
 
 
-function getResult(scoreFor, scoreAgainst) {
-  if (scoreFor > scoreAgainst) {
-    return "WIN";
-  }
 
-  if (scoreFor < scoreAgainst) {
-    return "LOSS";
-  }
-
-  return "DRAW";
-}
-
-
-/**
- * Convert result into ranking points.
- */
-function getPoints(result) {
-  if (result === "WIN") {
-    return 1;
-  }
-
-  if (result === "DRAW") {
-    return 0.5;
-  }
-
-  return 0;
-}
-
-
-/**
- * Calculate a player's statistics from approved results.
- */
-async function calculatePlayerStats({
-  playerId,
-  mode,
-  category,
-}) {
-  validateMode(mode);
-
-  const results = await prisma.gameResult.findMany({
-    where: {
-      mode,
-      category,
-      approvalStatus: "APPROVED",
-
-      OR: [
-        {
-          whitePlayerId: playerId,
-        },
-        {
-          blackPlayerId: playerId,
-        },
-      ],
-    },
-
-    select: {
-      id: true,
-
-      whitePlayerId: true,
-      blackPlayerId: true,
-
-      whiteScore: true,
-      blackScore: true,
-    },
-  });
-
-  let totalPoints = 0;
-  let totalRounds = 0;
-
-  let wins = 0;
-  let draws = 0;
-  let losses = 0;
-
-  let scoreFor = 0;
-  let scoreAgainst = 0;
-
-  for (const result of results) {
-    const isWhite =
-      result.whitePlayerId === playerId;
-
-    const playerScore = isWhite
-      ? result.whiteScore
-      : result.blackScore;
-
-    const opponentScore = isWhite
-      ? result.blackScore
-      : result.whiteScore;
-
-    const gameResult = getResult(
-      playerScore,
-      opponentScore
-    );
-
-    totalPoints += getPoints(gameResult);
-
-    totalRounds++;
-
-    scoreFor += playerScore;
-    scoreAgainst += opponentScore;
-
-    if (gameResult === "WIN") {
-      wins++;
-    }
-
-    else if (gameResult === "DRAW") {
-      draws++;
-    }
-
-    else {
-      losses++;
-    }
-  }
-
-  /**
-   * Accuracy represents percentage of available
-   * ranking points earned.
-   *
-   * Example:
-   *
-   * 5 wins + 2 draws
-   *
-   * points = 6
-   * rounds = 7
-   *
-   * accuracy = 85.71%
-   */
-  const accuracy =
-    totalRounds > 0
-      ? Number(
-          (
-            (totalPoints / totalRounds) *
-            100
-          ).toFixed(2)
-        )
-      : 0;
-
-  return {
-    totalPoints,
-    totalRounds,
-    accuracy,
-
-    wins,
-    draws,
-    losses,
-
-    scoreFor,
-    scoreAgainst,
-  };
-}
-
-
-/**
- * Calculate and save rankings for one
- * category + mode.
- *
- * This creates a current ranking snapshot.
- */
 async function calculateRankings({
   category,
   mode,
@@ -179,9 +23,6 @@ async function calculateRankings({
     throw new Error("Category is required.");
   }
 
-  /**
-   * Get all active players in this category.
-   */
   const players = await prisma.player.findMany({
     where: {
       category,
@@ -209,10 +50,7 @@ async function calculateRankings({
         category,
       });
 
-    /**
-     * Rating is used as a secondary
-     * tiebreaker.
-     */
+    
     let rating = 0;
 
     if (mode === "RAPID") {
@@ -234,15 +72,6 @@ async function calculateRankings({
     });
   }
 
-  /**
-   * Ranking order:
-   *
-   * 1. Total points
-   * 2. Accuracy
-   * 3. Rating
-   * 4. Total rounds
-   * 5. Username
-   */
   rankingData.sort((a, b) => {
     if (b.totalPoints !== a.totalPoints) {
       return b.totalPoints - a.totalPoints;
@@ -265,16 +94,7 @@ async function calculateRankings({
     );
   });
 
-  /**
-   * Assign ranks.
-   *
-   * Competition ranking:
-   *
-   * 1
-   * 2
-   * 2
-   * 4
-   */
+ 
   let previous = null;
   let currentRank = 0;
 
@@ -296,15 +116,6 @@ async function calculateRankings({
     previous = item;
   }
 
-  /**
-   * Current ranking snapshot.
-   *
-   * We remove the old current snapshot
-   * for this category/mode and rebuild it.
-   *
-   * tournamentId = null
-   * month/year = null
-   */
   await prisma.$transaction(async (tx) => {
     await tx.playerRanking.deleteMany({
       where: {
@@ -341,12 +152,6 @@ async function calculateRankings({
     });
   });
 
-  /**
-   * Notify players whose ranking changed.
-   *
-   * Notification failure must never break
-   * the ranking calculation.
-   */
   try {
     await Promise.all(
       rankingData.map((item) =>
@@ -392,9 +197,6 @@ async function calculateRankings({
 }
 
 
-/**
- * Get current rankings.
- */
 async function getRankings({
   category,
   mode,
@@ -443,9 +245,6 @@ async function getRankings({
 }
 
 
-/**
- * Get one player's current ranking.
- */
 async function getPlayerRanking({
   playerId,
   category,
@@ -491,53 +290,10 @@ async function getPlayerRanking({
 }
 
 
-/**
- * Recalculate rankings affected by a result.
- */
-async function recalculateAfterResult(resultId) {
-  resultId = Number(resultId);
-
-  if (
-    !Number.isInteger(resultId) ||
-    resultId <= 0
-  ) {
-    throw new Error("Invalid result ID.");
-  }
-
-  const result = await prisma.gameResult.findUnique({
-    where: {
-      id: resultId,
-    },
-
-    select: {
-      category: true,
-      mode: true,
-      approvalStatus: true,
-    },
-  });
-
-  if (!result) {
-    throw new Error("Result not found.");
-  }
-
-  if (result.approvalStatus !== "APPROVED") {
-    return null;
-  }
-
-  return calculateRankings({
-    category: result.category,
-    mode: result.mode,
-  });
-}
-
 
 module.exports = {
-  getResult,
-  getPoints,
-  calculatePlayerStats,
   calculateRankings,
   getRankings,
   getPlayerRanking,
-  recalculateAfterResult,
 };
 
