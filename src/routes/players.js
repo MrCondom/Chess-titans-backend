@@ -749,16 +749,16 @@ router.get("/:id", async (req, res) => {
       });
     }
 
-    const player = await prisma.player.findUnique({
+    const player = await prisma.player.findFirst({
       where: {
         id: playerId,
+        status: "ACTIVE",
       },
 
       select: {
         id: true,
         fullName: true,
         username: true,
-        status: true,
 
         category: true,
         bio: true,
@@ -773,9 +773,11 @@ router.get("/:id", async (req, res) => {
 
         totalPoints: true,
         totalRounds: true,
+        totalWins: true,
+        totalLosses: true,
+        totalDraws: true,
 
-        currentChampionTitle: true,
-        championshipWins: true,
+        tournamentWins: true,
 
         teamId: true,
 
@@ -784,13 +786,6 @@ router.get("/:id", async (req, res) => {
     });
 
     if (!player) {
-      return res.status(404).json({
-        success: false,
-        message: "Player not found.",
-      });
-    }
-
-    if (player.status !== "ACTIVE") {
       return res.status(404).json({
         success: false,
         message: "Player not found.",
