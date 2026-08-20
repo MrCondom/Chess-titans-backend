@@ -5,7 +5,6 @@ const adminAuth = require("../middleware/adminAuth");
 const playerAuth = require("../middleware/playerAuth");
 
 const resultService = require("../services/resultService");
-const ratingService = require("../services/ratingService");
 
 
 router.post(
@@ -13,8 +12,7 @@ router.post(
   playerAuth,
   async (req, res) => {
     try {
-      const playerId =
-        req.player.id;
+      const playerId = req.player.id;
 
       const {
         pairingId,
@@ -23,7 +21,7 @@ router.post(
       } = req.body;
 
       const result =
-        await ratingService.submitResult({
+        await resultService.submitResult({
           pairingId,
           playerId,
           whiteScore,
@@ -36,6 +34,7 @@ router.post(
           "Result submitted successfully. Awaiting approval.",
         result,
       });
+
     } catch (error) {
       console.error(
         "SUBMIT RESULT ERROR:",
@@ -45,73 +44,74 @@ router.post(
       return res.status(400).json({
         success: false,
         message: error.message,
-        code: error.code || "RESULT_SUBMISSION_ERROR",
+        code:
+          error.code ||
+          "RESULT_SUBMISSION_ERROR",
       });
     }
   }
 );
 
 
-router.get("/my", playerAuth, async (req, res) => {
-  try {
-    if (!req.player || !req.player.id) {
-      return res.status(401).json({
-        success: false,
-        message: "Player authentication required.",
+router.get(
+  "/my",
+  playerAuth,
+  async (req, res) => {
+    try {
+      const playerId = Number(req.player.id);
+
+      if (
+        !Number.isInteger(playerId) ||
+        playerId <= 0
+      ) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid player session.",
+        });
+      }
+
+      const {
+        category,
+        round,
+        mode,
+        approvalStatus,
+      } = req.query;
+
+      const results =
+        await resultService.getPlayerResults(
+          playerId,
+          {
+            category,
+            round,
+            mode,
+            approvalStatus,
+          }
+        );
+
+      return res.status(200).json({
+        success: true,
+        count: results.length,
+        results,
       });
-    }
 
-    const playerId = Number(req.player.id);
-
-    if (
-      !Number.isInteger(playerId) ||
-      playerId <= 0
-    ) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid player session.",
-      });
-    }
-
-    const {
-      category,
-      round,
-      mode,
-      approvalStatus,
-    } = req.query;
-
-    const results =
-      await resultService.getPlayerResults(
-        playerId,
-        {
-          category,
-          round,
-          mode,
-          approvalStatus,
-        }
+    } catch (error) {
+      console.error(
+        "GET MY RESULTS ERROR:",
+        error
       );
 
-    return res.status(200).json({
-      success: true,
-      count: results.length,
-      results,
-    });
-
-  } catch (error) {
-    console.error(
-      "GET MY RESULTS ERROR:",
-      error
-    );
-
-    return res.status(400).json({
-      success: false,
-      message:
-        error.message ||
-        "Failed to retrieve results.",
-    });
+      return res.status(400).json({
+        success: false,
+        message:
+          error.message ||
+          "Failed to retrieve results.",
+        code:
+          error.code ||
+          "RESULT_ERROR",
+      });
+    }
   }
-});
-
+);
 
 
 router.get(
@@ -151,6 +151,9 @@ router.get(
         message:
           error.message ||
           "Failed to retrieve results.",
+        code:
+          error.code ||
+          "RESULT_ERROR",
       });
     }
   }
@@ -163,7 +166,7 @@ router.get(
   async (req, res) => {
     try {
       const result =
-        await ratingService.getResultById(
+        await resultService.getResultById(
           req.params.id
         );
 
@@ -174,10 +177,8 @@ router.get(
         });
       }
 
-      // Security:
-      // player can only see their own result.
       const playerId =
-        req.player.id;
+        Number(req.player.id);
 
       if (
         result.whitePlayerId !== playerId &&
@@ -194,6 +195,7 @@ router.get(
         success: true,
         result,
       });
+
     } catch (error) {
       console.error(
         "GET RESULT ERROR:",
@@ -203,11 +205,14 @@ router.get(
       return res.status(400).json({
         success: false,
         message: error.message,
+        code:
+          error.code ||
+          "RESULT_ERROR",
       });
     }
   }
 );
 
 
-
 module.exports = router;
+

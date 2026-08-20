@@ -1,4 +1,10 @@
 const prisma = require("../lib/prisma");
+
+const pairingService = require("./pairingService");
+const resultService = require("./resultService");
+const ratingService = require("./ratingService");
+const playerService = require("./playerService");
+const rankingService = require("./rankingService");
 const notificationService = require("./notificationService");
 
 const VALID_MODES = ["RAPID", "BLITZ", "BULLET"];
@@ -25,6 +31,42 @@ const tournamentInclude = {
           category: true,
         },
       },
+    },
+  },
+
+  pairings: {
+    orderBy: [
+      { round: "asc" },
+      { id: "asc" },
+    ],
+    include: {
+      whitePlayer: {
+        select: {
+          id: true,
+          fullName: true,
+          username: true,
+        },
+      },
+      blackPlayer: {
+        select: {
+          id: true,
+          fullName: true,
+          username: true,
+        },
+      },
+      result: true,
+    },
+  },
+
+  teamPairings: {
+    orderBy: [
+      { round: "asc" },
+      { id: "asc" },
+    ],
+    include: {
+      teamA: true,
+      teamB: true,
+      games: true,
     },
   },
 
@@ -60,11 +102,9 @@ function id(value, field = "ID") {
 }
 
 
-function mode(value) {
+function validateMode(value) {
   if (!VALID_MODES.includes(value)) {
-    const error = new Error(
-      "Invalid game mode."
-    );
+    const error = new Error("Invalid game mode.");
     error.code = "INVALID_GAME_MODE";
     throw error;
   }
@@ -73,11 +113,9 @@ function mode(value) {
 }
 
 
-function type(value) {
+function validateType(value) {
   if (!VALID_TYPES.includes(value)) {
-    const error = new Error(
-      "Invalid tournament type."
-    );
+    const error = new Error("Invalid tournament type.");
     error.code = "INVALID_TOURNAMENT_TYPE";
     throw error;
   }
@@ -86,11 +124,9 @@ function type(value) {
 }
 
 
-function format(value) {
+function validateFormat(value) {
   if (!VALID_FORMATS.includes(value)) {
-    const error = new Error(
-      "Invalid tournament format."
-    );
+    const error = new Error("Invalid tournament format.");
     error.code = "INVALID_TOURNAMENT_FORMAT";
     throw error;
   }
@@ -100,12 +136,15 @@ function format(value) {
 
 
 function notFound() {
-  const error = new Error(
-    "Tournament not found."
-  );
-
+  const error = new Error("Tournament not found.");
   error.code = "TOURNAMENT_NOT_FOUND";
+  return error;
+}
 
+
+function statusError(message) {
+  const error = new Error(message);
+  error.code = "INVALID_TOURNAMENT_STATUS";
   return error;
 }
 
@@ -113,56 +152,174 @@ function notFound() {
 async function createTournament({
   name,
   category = null,
-  mode: gameMode,
-  type: tournamentType = "CATEGORY",
-  format: tournamentFormat = "SWISS",
+  mode,
+  type = "CATEGORY",
+  format = "SWISS",
+  totalRounds = 1,
+  roundDurationMinutes = 0,
+  playerIds = [],
 }) {
   if (
     typeof name !== "string" ||
     !name.trim()
   ) {
-    const error = new Error(
-      "Tournament name is required."
-    );
-
+    const error = new Error("Tournament name is required.");
     error.code = "INVALID_TOURNAMENT_NAME";
     throw error;
   }
 
-  mode(gameMode);
-  type(tournamentType);
-  format(tournamentFormat);
+  validateMode(mode);
+  validateType(type);
+  validateFormat(format);
+
+  totalRounds = Number(totalRounds);
+  roundDurationMinutes = Number(roundDurationMinutes);
+
+  if (
+    !Number.isInteger(totalRounds) ||
+    totalRounds < 1
+  ) {
+    const error = new Error(
+      "Total rounds must be at least 1."
+    );
+    error.code = "INVALID_TOTAL_ROUNDS";
+    throw error;
+  }
+
+  if (
+    !Number.isInteger(roundDurationMinutes) ||
+    roundDurationMinutes < 0
+  ) {
+    const error = new Error(
+      "Invalid round duration."
+    );
+    error.code = "INVALID_ROUND_DURATION";
+    throw error;
+  }
 
   if (
     category !== null &&
     typeof category !== "string"
   ) {
-    const error = new Error(
-      "Invalid tournament category."
-    );
-
+    const error = new Error("Invalid tournament category.");
     error.code = "INVALID_CATEGORY";
     throw error;
   }
 
-  const tournament =
-    await prisma.tournament.create({
-      data: {
-        name: name.trim(),
-        category: category?.trim() || null,
-        mode: gameMode,
-        type: tournamentType,
-        format: tournamentFormat,
-      },
+  const uniquePlayerIds = [
+    ...new Set(
+      playerIds.map((playerId) =>
+        id(playerId, "player ID")
+      )
+    ),
+  ];
 
-      include: tournamentInclude,
-    });
+  
+  if (
+    type !== "TEAM" &&
+    uniquePlayerIds.length === 0
+  ) {
+    const error = new Error(
+      "At least one player must be selected."
+    );
 
-  return tournament;
+    error.code = "NO_PLAYERS_SELECTED";
+    throw error;
+  }
+
+  return prisma.$transaction(
+    async (tx) => {
+      const tournament =
+        await tx.tournament.create({
+          data: {
+            name: name.trim(),
+            category:
+              category?.trim() || null,
+            mode,
+            type,
+            format,
+            totalRounds,
+            currentRound: 0,
+            roundDurationMinutes,
+            status: "DRAFT",
+          },
+        });
+
+      if (uniquePlayerIds.length) {
+        const players =
+          await tx.player.findMany({
+            where: {
+              id: {
+                in: uniquePlayerIds,
+              },
+              status: "ACTIVE",
+            },
+            select: {
+              id: true,
+              category: true,
+            },
+          });
+
+        if (
+          players.length !==
+          uniquePlayerIds.length
+        ) {
+          const error = new Error(
+            "One or more selected players are invalid or inactive."
+          );
+
+          error.code =
+            "INVALID_TOURNAMENT_PLAYERS";
+
+          throw error;
+        }
+
+        if (
+          type === "CATEGORY" &&
+          category
+        ) {
+          const invalidPlayer =
+            players.find(
+              (player) =>
+                player.category !== category
+            );
+
+          if (invalidPlayer) {
+            const error = new Error(
+              "All players must belong to the tournament category."
+            );
+
+            error.code =
+              "PLAYER_CATEGORY_MISMATCH";
+
+            throw error;
+          }
+        }
+
+        await tx.tournamentPlayer.createMany({
+          data: uniquePlayerIds.map(
+            (playerId) => ({
+              tournamentId: tournament.id,
+              playerId,
+            })
+          ),
+        });
+      }
+
+      return tx.tournament.findUnique({
+        where: {
+          id: tournament.id,
+        },
+        include: tournamentInclude,
+      });
+    }
+  );
 }
 
 
-async function getTournamentById(tournamentId) {
+async function getTournamentById(
+  tournamentId
+) {
   tournamentId = id(
     tournamentId,
     "tournament ID"
@@ -184,19 +341,25 @@ async function getTournamentById(tournamentId) {
 }
 
 
-
 async function getTournaments({
   status,
-  mode: gameMode,
-  type: tournamentType,
+  mode,
+  type,
   category,
   page = 1,
   limit = 20,
 } = {}) {
-  page = Math.max(1, Number(page) || 1);
+  page = Math.max(
+    1,
+    Number(page) || 1
+  );
+
   limit = Math.min(
     100,
-    Math.max(1, Number(limit) || 20)
+    Math.max(
+      1,
+      Number(limit) || 20
+    )
   );
 
   const where = {};
@@ -205,62 +368,69 @@ async function getTournaments({
     where.status = status;
   }
 
-  if (gameMode) {
-    mode(gameMode);
-    where.mode = gameMode;
+  if (mode) {
+    validateMode(mode);
+    where.mode = mode;
   }
 
-  if (tournamentType) {
-    type(tournamentType);
-    where.type = tournamentType;
+  if (type) {
+    validateType(type);
+    where.type = type;
   }
 
   if (category) {
     where.category = category.trim();
   }
 
-  const [tournaments, total] =
-    await prisma.$transaction([
-      prisma.tournament.findMany({
-        where,
-        skip: (page - 1) * limit,
-        take: limit,
+  const [
+    tournaments,
+    total,
+  ] = await prisma.$transaction([
+    prisma.tournament.findMany({
+      where,
+      skip: (page - 1) * limit,
+      take: limit,
 
-        orderBy: [
-          { createdAt: "desc" },
-          { id: "desc" },
-        ],
+      orderBy: [
+        { createdAt: "desc" },
+        { id: "desc" },
+      ],
 
-        include: {
-          championPlayer: {
-            select: {
-              id: true,
-              fullName: true,
-              username: true,
-            },
-          },
-
-          _count: {
-            select: {
-              players: true,
-              results: true,
-            },
+      include: {
+        championPlayer: {
+          select: {
+            id: true,
+            fullName: true,
+            username: true,
           },
         },
-      }),
 
-      prisma.tournament.count({
-        where,
-      }),
-    ]);
+        _count: {
+          select: {
+            players: true,
+            pairings: true,
+            teamPairings: true,
+            results: true,
+          },
+        },
+      },
+    }),
+
+    prisma.tournament.count({
+      where,
+    }),
+  ]);
 
   return {
     tournaments,
+
     pagination: {
       page,
       limit,
       total,
-      totalPages: Math.ceil(total / limit),
+      totalPages: Math.ceil(
+        total / limit
+      ),
     },
   };
 }
@@ -294,12 +464,18 @@ async function registerPlayer(
       }
 
       if (tournament.status !== "DRAFT") {
+        throw statusError(
+          "Players can only be added before the tournament starts."
+        );
+      }
+
+      if (tournament.type === "TEAM") {
         const error = new Error(
-          "Players can only be registered before the tournament starts."
+          "Team tournaments use teams, not direct player registration."
         );
 
         error.code =
-          "TOURNAMENT_NOT_ACCEPTING_PLAYERS";
+          "TEAM_TOURNAMENT_PLAYER_REGISTRATION";
 
         throw error;
       }
@@ -309,7 +485,6 @@ async function registerPlayer(
           where: {
             id: playerId,
           },
-
           select: {
             id: true,
             fullName: true,
@@ -323,7 +498,6 @@ async function registerPlayer(
         const error = new Error(
           "Player not found."
         );
-
         error.code = "PLAYER_NOT_FOUND";
         throw error;
       }
@@ -332,15 +506,15 @@ async function registerPlayer(
         const error = new Error(
           "Player is not active."
         );
-
         error.code = "PLAYER_INACTIVE";
         throw error;
       }
 
       if (
-        tournament.category &&
         tournament.type === "CATEGORY" &&
-        player.category !== tournament.category
+        tournament.category &&
+        player.category !==
+          tournament.category
       ) {
         const error = new Error(
           "Player does not belong to this tournament category."
@@ -400,12 +574,9 @@ async function removePlayer(
   }
 
   if (tournament.status !== "DRAFT") {
-    const error = new Error(
+    throw statusError(
       "Players can only be removed before the tournament starts."
     );
-
-    error.code = "INVALID_TOURNAMENT_STATUS";
-    throw error;
   }
 
   const participant =
@@ -440,7 +611,9 @@ async function removePlayer(
 }
 
 
-async function startTournament(tournamentId) {
+async function startTournament(
+  tournamentId
+) {
   tournamentId = id(
     tournamentId,
     "tournament ID"
@@ -453,6 +626,20 @@ async function startTournament(tournamentId) {
       },
 
       include: {
+        players: {
+          include: {
+            player: {
+              select: {
+                id: true,
+                fullName: true,
+                username: true,
+                category: true,
+                status: true,
+              },
+            },
+          },
+        },
+
         _count: {
           select: {
             players: true,
@@ -466,15 +653,15 @@ async function startTournament(tournamentId) {
   }
 
   if (tournament.status !== "DRAFT") {
-    const error = new Error(
+    throw statusError(
       "Only a DRAFT tournament can be started."
     );
-
-    error.code = "INVALID_TOURNAMENT_STATUS";
-    throw error;
   }
 
-  if (tournament._count.players < 2) {
+  if (
+    tournament.type !== "TEAM" &&
+    tournament._count.players < 2
+  ) {
     const error = new Error(
       "A tournament requires at least two players."
     );
@@ -483,22 +670,175 @@ async function startTournament(tournamentId) {
     throw error;
   }
 
-  return prisma.tournament.update({
+  
+  await prisma.tournament.update({
     where: {
       id: tournamentId,
     },
 
     data: {
       status: "ACTIVE",
+      currentRound: 1,
       startedAt: new Date(),
     },
-
-    include: tournamentInclude,
   });
+
+  try {
+    
+    if (tournament.type !== "TEAM") {
+      await pairingService.createTournamentRound({
+        tournamentId,
+        round: 1,
+        mode: tournament.mode,
+        format: tournament.format,
+        category: tournament.category,
+        totalRounds: tournament.totalRounds,
+      });
+    }
+
+    /*
+     * TEAM TOURNAMENT
+     */
+    else {
+      await pairingService.createTeamTournamentRound({
+        tournamentId,
+        round: 1,
+        mode: tournament.mode,
+        format: tournament.format,
+      });
+    }
+
+    
+    await notificationService.notifyTournamentRound(
+      tournamentId,
+      1
+    );
+
+    return getTournamentById(
+      tournamentId
+    );
+  } catch (error) {
+    /*
+     * Do not leave a broken ACTIVE tournament.
+     */
+    await prisma.tournament.update({
+      where: {
+        id: tournamentId,
+      },
+
+      data: {
+        status: "DRAFT",
+        currentRound: 0,
+        startedAt: null,
+      },
+    });
+
+    throw error;
+  }
 }
 
 
-async function calculateStandings(tournamentId) {
+async function advanceRound(
+  tournamentId
+) {
+  tournamentId = id(
+    tournamentId,
+    "tournament ID"
+  );
+
+  const tournament =
+    await prisma.tournament.findUnique({
+      where: {
+        id: tournamentId,
+      },
+    });
+
+  if (!tournament) {
+    throw notFound();
+  }
+
+  if (tournament.status !== "ACTIVE") {
+    throw statusError(
+      "Only an ACTIVE tournament can advance rounds."
+    );
+  }
+
+  if (
+    tournament.currentRound >=
+    tournament.totalRounds
+  ) {
+    const error = new Error(
+      "All tournament rounds have been completed."
+    );
+
+    error.code = "ALL_ROUNDS_COMPLETED";
+    throw error;
+  }
+
+  
+  const pending =
+    await resultService.getPendingTournamentResults(
+      tournamentId,
+      tournament.currentRound
+    );
+
+  if (pending > 0) {
+    const error = new Error(
+      "The current round still has pending results."
+    );
+
+    error.code =
+      "ROUND_RESULTS_PENDING";
+
+    throw error;
+  }
+
+  const nextRound =
+    tournament.currentRound + 1;
+
+  if (tournament.type === "TEAM") {
+    await pairingService.createTeamTournamentRound({
+      tournamentId,
+      round: nextRound,
+      mode: tournament.mode,
+      format: tournament.format,
+    });
+  } else {
+    await pairingService.createTournamentRound({
+      tournamentId,
+      round: nextRound,
+      mode: tournament.mode,
+      format: tournament.format,
+      category: tournament.category,
+      totalRounds: tournament.totalRounds,
+    });
+  }
+
+  await prisma.tournament.update({
+    where: {
+      id: tournamentId,
+    },
+
+    data: {
+      currentRound: nextRound,
+    },
+  });
+
+  await notificationService.notifyTournamentRound(
+    tournamentId,
+    nextRound
+  );
+
+  return getTournamentById(
+    tournamentId
+  );
+}
+
+
+
+async function calculateStandings(
+  tournamentId
+) {
   tournamentId = id(
     tournamentId,
     "tournament ID"
@@ -533,38 +873,32 @@ async function calculateStandings(tournamentId) {
   const sorted =
     [...tournament.results].sort(
       (a, b) =>
-        b.totalPoints - a.totalPoints ||
-        b.accuracy - a.accuracy ||
-        b.ratingAfter - a.ratingAfter ||
-        a.playerId - b.playerId
+        b.totalPoints -
+          a.totalPoints ||
+        b.accuracy -
+          a.accuracy ||
+        b.ratingAfter -
+          a.ratingAfter ||
+        a.playerId -
+          b.playerId
     );
 
-  return sorted.map((result, index) => ({
-    ...result,
-    rank: index + 1,
-  }));
+  return sorted.map(
+    (result, index) => ({
+      ...result,
+      rank: index + 1,
+    })
+  );
 }
 
 
-async function completeTournament(tournamentId) {
+async function completeTournament(
+  tournamentId
+) {
   tournamentId = id(
     tournamentId,
     "tournament ID"
   );
-
-  const standings =
-    await calculateStandings(
-      tournamentId
-    );
-
-  if (!standings.length) {
-    const error = new Error(
-      "Cannot complete a tournament without results."
-    );
-
-    error.code = "NO_TOURNAMENT_RESULTS";
-    throw error;
-  }
 
   const tournament =
     await prisma.tournament.findUnique({
@@ -578,89 +912,218 @@ async function completeTournament(tournamentId) {
   }
 
   if (tournament.status !== "ACTIVE") {
-    const error = new Error(
+    throw statusError(
       "Only an ACTIVE tournament can be completed."
     );
+  }
 
-    error.code = "INVALID_TOURNAMENT_STATUS";
+  if (
+    tournament.currentRound <
+    tournament.totalRounds
+  ) {
+    const error = new Error(
+      "All tournament rounds must be completed first."
+    );
+
+    error.code =
+      "TOURNAMENT_ROUNDS_INCOMPLETE";
+
     throw error;
   }
 
-  const champion = standings[0];
-
-  const result =
-    await prisma.$transaction(
-      async (tx) => {
-        for (const standing of standings) {
-          await tx.tournamentResult.update({
-            where: {
-              id: standing.id,
-            },
-
-            data: {
-              rank: standing.rank,
-            },
-          });
-        }
-
-        const completed =
-          await tx.tournament.update({
-            where: {
-              id: tournamentId,
-            },
-
-            data: {
-              status: "COMPLETED",
-              championPlayerId:
-                champion.playerId,
-              championUsername:
-                champion.player.username,
-              championTitle:
-                tournament.type === "SPECIAL"
-                  ? "Special Champion"
-                  : "Category Champion",
-              completedAt: new Date(),
-            },
-
-            include: tournamentInclude,
-          });
-
-        return completed;
-      }
+  
+  const pending =
+    await resultService.getPendingTournamentResults(
+      tournamentId
     );
 
-  try {
-    await notificationService.createNotification({
-      playerId: champion.playerId,
-      type: "CHAMPIONSHIP",
-      title: "Tournament Champion",
-      message:
-        `Congratulations! You won "${result.name}".`,
-    });
-  } catch (error) {
-    console.error(
-      "Tournament notification failed:",
-      error
+  if (pending > 0) {
+    const error = new Error(
+      "Tournament still has pending results."
     );
+
+    error.code =
+      "TOURNAMENT_RESULTS_PENDING";
+
+    throw error;
   }
 
+  
+  const finalResults =
+    await resultService.buildTournamentResults(
+      tournamentId
+    );
+
+  if (!finalResults.length) {
+    const error = new Error(
+      "Cannot complete tournament without results."
+    );
+
+    error.code =
+      "NO_TOURNAMENT_RESULTS";
+
+    throw error;
+  }
+
+  
+  const standings =
+    await rankingService.calculateTournamentRanking(
+      tournamentId,
+      finalResults
+    );
+
+  const champion =
+    standings[0];
+
+  
+  await prisma.$transaction(
+    async (tx) => {
+      for (
+        const standing of standings
+      ) {
+        await tx.tournamentResult.upsert({
+          where: {
+            tournamentId_playerId: {
+              tournamentId,
+              playerId:
+                standing.playerId,
+            },
+          },
+
+          create: {
+            tournamentId,
+            playerId:
+              standing.playerId,
+            rank: standing.rank,
+            totalPoints:
+              standing.totalPoints,
+            totalRounds:
+              standing.totalRounds,
+            accuracy:
+              standing.accuracy,
+            ratingBefore:
+              standing.ratingBefore,
+            ratingAfter:
+              standing.ratingAfter,
+          },
+
+          update: {
+            rank: standing.rank,
+            totalPoints:
+              standing.totalPoints,
+            totalRounds:
+              standing.totalRounds,
+            accuracy:
+              standing.accuracy,
+            ratingBefore:
+              standing.ratingBefore,
+            ratingAfter:
+              standing.ratingAfter,
+          },
+        });
+      }
+    }
+  );
+
+  
+  await playerService.applyTournamentCompletion({
+    tournamentId,
+    standings,
+    mode: tournament.mode,
+  });
+
+ 
+  await rankingService.saveTournamentRankings({
+    tournamentId,
+    standings,
+    mode: tournament.mode,
+    category: tournament.category,
+    type: tournament.type,
+  });
+
+  
+  const completed =
+    await prisma.tournament.update({
+      where: {
+        id: tournamentId,
+      },
+
+      data: {
+        status: "COMPLETED",
+
+        championPlayerId:
+          champion.playerId,
+
+        championUsername:
+          champion.username,
+
+        championTitle:
+          tournament.type === "SPECIAL"
+            ? "Special Champion"
+            : tournament.type === "CATEGORY"
+              ? "Category Champion"
+              : "Team Champion",
+
+        completedAt: new Date(),
+      },
+
+      include: tournamentInclude,
+    });
+
+  await notificationService.createNotification({
+    playerId:
+      champion.playerId,
+
+    type: "CHAMPIONSHIP",
+
+    title:
+      "Tournament Champion",
+
+    message:
+      `Congratulations! You won "${completed.name}".`,
+  });
+
+  
+  await notificationService.notifyTournamentCompleted(
+    tournamentId
+  );
+
   return {
-    tournament: result,
+    tournament: completed,
+
     champion: {
-      playerId: champion.playerId,
-      username: champion.player.username,
-      fullName: champion.player.fullName,
+      playerId:
+        champion.playerId,
+
+      username:
+        champion.username,
+
+      fullName:
+        champion.fullName,
+
       rank: 1,
-      totalPoints: champion.totalPoints,
-      accuracy: champion.accuracy,
-      ratingBefore: champion.ratingBefore,
-      ratingAfter: champion.ratingAfter,
+
+      totalPoints:
+        champion.totalPoints,
+
+      accuracy:
+        champion.accuracy,
+
+      ratingBefore:
+        champion.ratingBefore,
+
+      ratingAfter:
+        champion.ratingAfter,
     },
+
+    standings,
   };
 }
 
 
-async function cancelTournament(tournamentId) {
+async function cancelTournament(
+  tournamentId
+) {
   tournamentId = id(
     tournamentId,
     "tournament ID"
@@ -678,16 +1141,12 @@ async function cancelTournament(tournamentId) {
   }
 
   if (
-    ["COMPLETED", "CANCELLED"].includes(
-      tournament.status
-    )
+    ["COMPLETED", "CANCELLED"]
+      .includes(tournament.status)
   ) {
-    const error = new Error(
+    throw statusError(
       "Tournament cannot be cancelled."
     );
-
-    error.code = "INVALID_TOURNAMENT_STATUS";
-    throw error;
   }
 
   return prisma.tournament.update({
@@ -716,10 +1175,17 @@ async function getPlayerTournaments(
     "player ID"
   );
 
-  page = Math.max(1, Number(page) || 1);
+  page = Math.max(
+    1,
+    Number(page) || 1
+  );
+
   limit = Math.min(
     100,
-    Math.max(1, Number(limit) || 20)
+    Math.max(
+      1,
+      Number(limit) || 20
+    )
   );
 
   const where = {
@@ -730,57 +1196,64 @@ async function getPlayerTournaments(
     },
   };
 
-  const [tournaments, total] =
-    await prisma.$transaction([
-      prisma.tournament.findMany({
-        where,
-        skip: (page - 1) * limit,
-        take: limit,
+  const [
+    tournaments,
+    total,
+  ] = await prisma.$transaction([
+    prisma.tournament.findMany({
+      where,
 
-        orderBy: {
-          createdAt: "desc",
-        },
+      skip:
+        (page - 1) * limit,
 
-        include: {
-          championPlayer: {
-            select: {
-              id: true,
-              fullName: true,
-              username: true,
-            },
-          },
+      take: limit,
 
-          results: {
-            where: {
-              playerId,
-            },
+      orderBy: {
+        createdAt: "desc",
+      },
 
-            select: {
-              rank: true,
-              totalPoints: true,
-              totalRounds: true,
-              accuracy: true,
-              ratingBefore: true,
-              ratingAfter: true,
-            },
+      include: {
+        championPlayer: {
+          select: {
+            id: true,
+            fullName: true,
+            username: true,
           },
         },
-      }),
 
-      prisma.tournament.count({
-        where,
-      }),
-    ]);
+        results: {
+          where: {
+            playerId,
+          },
+
+          select: {
+            rank: true,
+            totalPoints: true,
+            totalRounds: true,
+            accuracy: true,
+            ratingBefore: true,
+            ratingAfter: true,
+          },
+        },
+      },
+    }),
+
+    prisma.tournament.count({
+      where,
+    }),
+  ]);
 
   return {
     tournaments,
+
     pagination: {
       page,
       limit,
       total,
-      totalPages: Math.ceil(
-        total / limit
-      ),
+      totalPages:
+        Math.ceil(
+          total / limit
+        ),
     },
   };
 }
@@ -790,11 +1263,17 @@ module.exports = {
   createTournament,
   getTournamentById,
   getTournaments,
+
   registerPlayer,
   removePlayer,
+
   startTournament,
+  advanceRound,
+
   calculateStandings,
   completeTournament,
+
   cancelTournament,
+
   getPlayerTournaments,
 };
