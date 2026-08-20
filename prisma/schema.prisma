@@ -116,6 +116,9 @@ model Player {
   whiteResults GameResult[] @relation("WhitePlayerResults")
   blackResults GameResult[] @relation("BlackPlayerResults")
 
+  teamGamesAsWhite TeamGame[] @relation("TeamGameWhite")
+  teamGamesAsBlack TeamGame[] @relation("TeamGameBlack")
+
   rankings PlayerRanking[]
 
   ratingGains RatingGain[]
@@ -267,9 +270,22 @@ model TeamGame {
   
   teamPairingId Int
   boardPosition  Int
+  
   whitePlayerId Int
   blackPlayerId Int
+  
   result Int
+
+  teamPairing TeamPairing @relation(fields: [teamPairingId], references: [id], onDelete: Cascade)
+
+  whitePlayer Player @relation("TeamGameWhite", fields: [whitePlayerId], references: [id], onDelete: Cascade)
+
+  blackPlayer Player @relation("TeamGameBlack", fields: [blackPlayerId], references: [id], onDelete: Cascade)
+
+  @@unique([teamPairingId, boardPosition])
+  @@index([teamPairingId])
+  @@index([whitePlayerId])
+  @@index([blackPlayerId])
   
 
   }
@@ -409,7 +425,6 @@ model TeamRanking {
   rank Int
 
   totalPoints Float @default(0)
-  ratingGain  Int   @default(0)
 
   month Int?
   year  Int?
