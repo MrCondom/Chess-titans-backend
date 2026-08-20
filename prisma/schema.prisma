@@ -48,6 +48,7 @@ enum NotificationType {
   RESULT
   RANKING
   SYSTEM
+  CHAMPIONSHIP
 }
 
 enum TournamentType {
@@ -220,6 +221,7 @@ model Pairing {
   @@index([whitePlayerId])
   @@index([blackPlayerId])
   @@index([tournamentId])
+  @@index([tournamentId, round])
 }
 
 model TeamPairing {
@@ -435,6 +437,10 @@ model Tournament {
   format TournamentFormat @default(SWISS)
 
   status TournamentStatus @default(DRAFT)
+
+  totalRounds Int @default(1)
+  currentRound Int @default(0)
+  roundDurationMinutes Int @default(0)
 
   championPlayerId Int?
   championPlayer   Player? @relation("TournamentChampion", fields: [championPlayerId], references: [id], onDelete: SetNull)
