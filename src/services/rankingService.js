@@ -61,7 +61,6 @@ async function calculateRankings({
     rankingData.push({
       player,
       rating,
-      ...stats,
     });
   }
 
@@ -85,8 +84,6 @@ async function calculateRankings({
 
     const sameAsPrevious =
       previous &&
-      previous.totalPoints === item.totalPoints &&
-      previous.accuracy === item.accuracy &&
       previous.rating === item.rating;
 
     if (!sameAsPrevious) {
@@ -122,10 +119,6 @@ async function calculateRankings({
 
         rank: item.rank,
 
-        totalPoints: item.totalPoints,
-        totalRounds: item.totalRounds,
-
-        accuracy: item.accuracy,
 
         tournamentId: null,
         month: null,
@@ -134,25 +127,6 @@ async function calculateRankings({
     });
   });
 
-  try {
-    await Promise.all(
-      rankingData.map((item) =>
-        notificationService.createNotification({
-          playerId: item.player.id,
-          type: "RANKING",
-          title: "Ranking Updated",
-          message:
-            `Your ${mode} ranking for ${category} ` +
-            `is now #${item.rank}.`,
-        })
-      )
-    );
-  } catch (error) {
-    console.error(
-      "RANKING NOTIFICATION ERROR:",
-      error
-    );
-  }
 
   return rankingData.map((item) => ({
     playerId: item.player.id,
