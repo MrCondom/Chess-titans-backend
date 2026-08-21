@@ -134,6 +134,33 @@ router.get(
   }
 );
 
+router.get(
+  "/overall",
+  async (req, res) => {
+    try {
+      const rankings =
+        await rankingService.getOverallPlayerRankings();
+
+      res.json({
+        success: true,
+        count: rankings.length,
+        rankings,
+      });
+
+    } catch (error) {
+      console.error(
+        "GET OVERALL PLAYER RANKINGS ERROR:",
+        error
+      );
+
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+);
+
 
 
 module.exports = router;

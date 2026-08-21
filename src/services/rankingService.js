@@ -236,11 +236,52 @@ async function getPlayerRanking({
   });
 }
 
+async function getOverallPlayerRankings() {
+  const players = await prisma.player.findMany({
+    where: {
+      status: "ACTIVE",
+    },
+
+    select: {
+      id: true,
+      fullName: true,
+      username: true,
+      category: true,
+      totalPoints: true,
+    },
+
+    orderBy: {
+      totalPoints: "desc",
+    },
+  });
+
+  let currentRank = 0;
+  let previousPoints = null;
+
+  return players.map((player, index) => {
+    if (player.totalPoints !== previousPoints) {
+      currentRank = index + 1;
+    }
+
+    previousPoints = player.totalPoints;
+
+    return {
+      playerId: player.id,
+      fullName: player.fullName,
+      username: player.username,
+      category: player.category,
+      totalPoints: player.totalPoints,
+      rank: currentRank,
+    };
+  });
+}
+
 
 
 module.exports = {
   calculateRankings,
   getRankings,
   getPlayerRanking,
+  getOverallPlayerRankings
 };
 
