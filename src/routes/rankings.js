@@ -161,6 +161,33 @@ router.get(
   }
 );
 
+router.get(
+  "/teams",
+  async (req, res) => {
+    try {
+      const rankings =
+        await rankingService.getTeamRankings();
+
+      res.json({
+        success: true,
+        count: rankings.length,
+        rankings,
+      });
+
+    } catch (error) {
+      console.error(
+        "GET TEAM RANKINGS ERROR:",
+        error
+      );
+
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+);
+
 
 
 module.exports = router;
