@@ -5,7 +5,7 @@ const router = express.Router();
 const pairingService =
   require("../services/pairingService");
 
-const adminAuth =
+const { adminAuth } =
   require("../middleware/adminAuth");
 
 

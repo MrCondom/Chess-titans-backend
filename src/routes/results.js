@@ -1,143 +1,158 @@
 const express = require("express");
 const router = express.Router();
 
-const adminAuth = require("../middleware/adminAuth");
-const playerAuth = require("../middleware/playerAuth");
+const ratingService = require("../services/ratingService");
 
-const resultService = require("../services/resultService");
+router.patch(
+  "/results/:resultId/recalculate-gain",
+  async (req, res) => {
+    try {
+      const result =
+        await ratingService.recalculateEditedResultGains(
+          req.params.resultId
+        );
 
+      return res.status(200).json({
+        success: true,
+        message: "Rating gains recalculated successfully.",
+        data: result,
+      });
 
-router.post("/", async (req, res) => {
-  try {
-    const {
-      pairingId,
-      whiteScore,
-      blackScore,
-    } = req.body;
+    } catch (error) {
+      console.error(
+        "RECALCULATE RESULT GAIN ERROR:",
+        error
+      );
 
-    const result = await resultService.createResult({
-      pairingId,
-      whiteScore,
-      blackScore,
-    });
+      if (error.code === "RESULT_NOT_FOUND") {
+        return res.status(404).json({
+          success: false,
+          message: error.message,
+        });
+      }
 
-    res.status(201).json({
-      success: true,
-      result,
-    });
-  } catch (error) {
-    console.error("CREATE RESULT ERROR:", error);
+      if (error.code === "INVALID_ID") {
+        return res.status(400).json({
+          success: false,
+          message: error.message,
+        });
+      }
 
-    if (error.code === "PAIRING_NOT_FOUND") {
-      return res.status(404).json({
+      return res.status(500).json({
         success: false,
-        message: error.message,
+        message: "Failed to recalculate rating gain.",
       });
     }
-
-    if (error.code === "RESULT_ALREADY_EXISTS") {
-      return res.status(409).json({
-        success: false,
-        message: error.message,
-      });
-    }
-
-    res.status(500).json({
-      success: false,
-      message: error.message || "Failed to create result.",
-    });
   }
-});
+);
 
-router.put("/:resultId", async (req, res) => {
-  try {
-    const { resultId } = req.params;
-    const {
-      whiteScore,
-      blackScore,
-    } = req.body;
 
-    const result = await resultService.updateResult({
-      resultId,
-      whiteScore,
-      blackScore,
-    });
+router.post(
+  "/results/:resultId/approve",
+  async (req, res) => {
+    try {
+      const result =
+        await ratingService.approveResult(
+          req.params.resultId
+        );
 
-    res.status(200).json({
-      success: true,
-      result,
-    });
-  } catch (error) {
-    console.error("UPDATE RESULT ERROR:", error);
+      return res.status(200).json({
+        success: true,
+        message: "Result approved successfully.",
+        data: result,
+      });
 
-    if (error.code === "RESULT_NOT_FOUND") {
-      return res.status(404).json({
+    } catch (error) {
+      console.error(
+        "APPROVE RESULT ERROR:",
+        error
+      );
+
+      if (error.code === "RESULT_NOT_FOUND") {
+        return res.status(404).json({
+          success: false,
+          message: error.message,
+        });
+      }
+
+      if (
+        error.code === "RESULT_ALREADY_REVIEWED"
+      ) {
+        return res.status(409).json({
+          success: false,
+          message: error.message,
+        });
+      }
+
+      if (error.code === "INVALID_ID") {
+        return res.status(400).json({
+          success: false,
+          message: error.message,
+        });
+      }
+
+      return res.status(500).json({
         success: false,
-        message: error.message,
+        message: "Failed to approve result.",
       });
     }
-
-    res.status(500).json({
-      success: false,
-      message: error.message || "Failed to update result.",
-    });
   }
-});
+);
 
-router.delete("/all", async (req, res) => {
-  try {
-    const result = await resultService.deleteAllResults();
 
-    res.status(200).json({
-      success: true,
-      message: "All results deleted successfully.",
-      ...result,
-    });
-  } catch (error) {
-    console.error("DELETE ALL RESULTS ERROR:", error);
+router.post(
+  "/rating-gains/:ratingGainId/apply",
+  async (req, res) => {
+    try {
+      const result =
+        await ratingService.applyRatingGain(
+          req.params.ratingGainId
+        );
 
-    if (error.code === "PAIRINGS_NOT_FINISHED") {
-      return res.status(400).json({
+      return res.status(200).json({
+        success: true,
+        message: "Rating gain applied successfully.",
+        data: result,
+      });
+
+    } catch (error) {
+      console.error(
+        "APPLY RATING GAIN ERROR:",
+        error
+      );
+
+      if (
+        error.code === "RATING_GAIN_NOT_FOUND"
+      ) {
+        return res.status(404).json({
+          success: false,
+          message: error.message,
+        });
+      }
+
+      if (
+        error.code === "RATING_GAIN_NOT_APPROVED"
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: error.message,
+        });
+      }
+
+      if (error.code === "INVALID_ID") {
+        return res.status(400).json({
+          success: false,
+          message: error.message,
+        });
+      }
+
+      return res.status(500).json({
         success: false,
-        message: error.message,
+        message: "Failed to apply rating gain.",
       });
     }
-
-    res.status(500).json({
-      success: false,
-      message: error.message || "Failed to delete all results.",
-    });
   }
-});
+);
 
-router.delete("/:resultId", async (req, res) => {
-  try {
-    const { resultId } = req.params;
-
-    const result = await resultService.deleteResult(
-      resultId
-    );
-
-    res.status(200).json({
-      success: true,
-      message: "Result deleted successfully.",
-      result,
-    });
-  } catch (error) {
-    console.error("DELETE RESULT ERROR:", error);
-
-    if (error.code === "RESULT_NOT_FOUND") {
-      return res.status(404).json({
-        success: false,
-        message: error.message,
-      });
-    }
-
-    res.status(500).json({
-      success: false,
-      message: error.message || "Failed to delete result.",
-    });
-  }
-});
 
 module.exports = router;

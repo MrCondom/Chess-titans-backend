@@ -2,8 +2,8 @@ const express = require("express");
 
 const teamService = require("../services/teamService");
 
-const playerAuth = require("../middleware/playerAuth");
-const adminAuth = require("../middleware/adminAuth");
+const playerAuth  = require("../middleware/playerAuth");
+const { adminAuth } = require("../middleware/adminAuth");
 
 
 const router = express.Router();
@@ -262,12 +262,6 @@ router.delete(
   }
 );
 
-
-/*
- * GET /teams/:teamId/memberships
- *
- * Membership history.
- */
 router.get(
   "/:teamId/memberships",
   adminAuth,
@@ -310,16 +304,6 @@ router.get(
 );
 
 
-/*
-|--------------------------------------------------------------------------
-| Captain Management
-|--------------------------------------------------------------------------
-*/
-
-
-/*
- * PATCH /teams/:teamId/captain
- */
 router.patch(
   "/:teamId/captain",
   adminAuth,
@@ -360,19 +344,6 @@ router.patch(
 );
 
 
-/*
-|--------------------------------------------------------------------------
-| Player's Own Team
-|--------------------------------------------------------------------------
-*/
-
-
-/*
- * GET /teams/player/me
- *
- * IMPORTANT:
- * This route must appear before /:teamId.
- */
 router.get(
   "/player/me",
   playerAuth,
@@ -404,138 +375,6 @@ router.get(
         code:
           error.code ||
           "GET_PLAYER_TEAM_FAILED",
-      });
-    }
-  }
-);
-
-
-/*
-|--------------------------------------------------------------------------
-| Team Pairings
-|--------------------------------------------------------------------------
-*/
-
-
-/*
- * POST /teams/pairings
- */
-router.post(
-  "/pairings",
-  adminAuth,
-  async (req, res) => {
-    try {
-      const pairing =
-        await teamService.createTeamPairing({
-          round: req.body.round,
-          teamAId: req.body.teamAId,
-          teamBId: req.body.teamBId,
-          availableAt: req.body.availableAt,
-        });
-
-      return res.status(201).json({
-        success: true,
-        message: "Team pairing created successfully.",
-        pairing,
-      });
-    } catch (error) {
-      console.error(
-        "CREATE TEAM PAIRING ERROR:",
-        error
-      );
-
-      const status =
-        error.code === "TEAM_NOT_FOUND"
-          ? 404
-          : error.code === "TEAM_PAIRING_EXISTS"
-          ? 409
-          : 400;
-
-      return res.status(status).json({
-        success: false,
-        message: error.message,
-        code:
-          error.code ||
-          "CREATE_TEAM_PAIRING_FAILED",
-      });
-    }
-  }
-);
-
-
-/*
- * GET /teams/pairings
- */
-router.get(
-  "/pairings",
-  playerAuth,
-  async (req, res) => {
-    try {
-      const result =
-        await teamService.getTeamPairings({
-          teamId: req.query.teamId,
-          round: req.query.round,
-          page: req.query.page,
-          limit: req.query.limit,
-        });
-
-      return res.json({
-        success: true,
-        ...result,
-      });
-    } catch (error) {
-      console.error(
-        "GET TEAM PAIRINGS ERROR:",
-        error
-      );
-
-      return res.status(400).json({
-        success: false,
-        message: error.message,
-        code:
-          error.code ||
-          "GET_TEAM_PAIRINGS_FAILED",
-      });
-    }
-  }
-);
-
-
-/*
- * GET /teams/pairings/:pairingId
- */
-router.get(
-  "/pairings/:pairingId",
-  playerAuth,
-  async (req, res) => {
-    try {
-      const pairing =
-        await teamService.getTeamPairingById(
-          req.params.pairingId
-        );
-
-      return res.json({
-        success: true,
-        pairing,
-      });
-    } catch (error) {
-      console.error(
-        "GET TEAM PAIRING ERROR:",
-        error
-      );
-
-      const status =
-        error.code ===
-        "TEAM_PAIRING_NOT_FOUND"
-          ? 404
-          : 400;
-
-      return res.status(status).json({
-        success: false,
-        message: error.message,
-        code:
-          error.code ||
-          "GET_TEAM_PAIRING_FAILED",
       });
     }
   }

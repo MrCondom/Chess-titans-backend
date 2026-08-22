@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 const prisma = require("../lib/prisma");
-const adminAuth = require("../middleware/adminAuth");
+const { adminAuth } = require("../middleware/adminAuth");
 const approvalService = require("../services/approvalService");
 const ratingService = require("../services/ratingService");
 
@@ -321,7 +321,7 @@ router.get("/approvals/history", adminAuth, async (req, res) => {
   }
 });
 
-Admins
+
 router.get(
   "/results/pending",
   adminAuth,

@@ -64,7 +64,7 @@ async function createResult({
 
         pairingId: pairing.id,
 
-        approvalStatus: "APPROVED",
+        approvalStatus: "PENDING",
         approvedAt: new Date(),
       },
 
@@ -127,7 +127,30 @@ async function updateResult({
     throw error;
   }
 
-  return prisma.gameResult.update({
+  const appliedGain = await prisma.ratingGain.findFirst({
+    where: {
+      pairingId: result.pairingId,
+      playerId: {
+        in: [
+          result.whitePlayerId,
+          result.blackPlayerId,
+        ],
+      },
+      isApplied: true,
+    },
+  });
+
+  if (appliedGain) {
+    const error = new Error(
+      "Cannot edit this result because its rating gain has already been applied."
+    );
+
+    error.code = "RESULT_RATING_ALREADY_APPLIED";
+
+    throw error;
+  }
+
+  const updatedResult = await prisma.gameResult.update({
     where: {
       id: resultId,
     },
@@ -157,7 +180,18 @@ async function updateResult({
       pairing: true,
     },
   });
+
+  if (result.approvalStatus === "APPROVED") {
+    const ratingService = require("./ratingService");
+
+    return ratingService.recalculateEditedResultGains(
+      resultId
+    );
+  }
+
+  return updatedResult;
 }
+
 
 async function deleteResult(resultId) {
   resultId = Number(resultId);
@@ -223,5 +257,5 @@ module.exports = {
   createResult,
   updateResult,
   deleteResult,
-  deleteAllResults()
+  deleteAllResults
 };

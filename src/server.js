@@ -10,9 +10,6 @@ const authRoutes = require("./routes/auth");
 const resultRoutes = require("./routes/results");
 const rankingsRoutes = require("./routes/rankings");
 const tournamentRoutes = require("./routes/tournaments");
-const announcementsRoutes = require("./routes/announcements");
-const championshipsRoutes = require("./routes/championships");
-
 
 
 dotenv.config();
@@ -36,8 +33,7 @@ app.use("/auth", authRoutes)
 app.use("/results", resultRoutes)
 app.use("/rankings", rankingsRoutes)
 app.use("/tournaments", tournamentRoutes)
-app.use("/announcements", announcementsRoutes)
-app.use("/championships", championshipsRoutes);
+
 
 
 
