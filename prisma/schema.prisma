@@ -262,6 +262,7 @@ model TeamGame {
   blackPlayerId Int
 
   result Int
+  approvalStatus ApprovalStatus @default(PENDING)
 
   teamPairing TeamPairing @relation(fields: [teamPairingId], references: [id], onDelete: Cascade)
 
@@ -406,6 +407,7 @@ model TeamRanking {
   rank Int
 
   totalPoints Float @default(0)
+  totalRating Int   @default(0)
 
   month Int?
   year  Int?
@@ -416,13 +418,15 @@ model TeamRanking {
 
   createdAt DateTime @default(now())
 
+  @@unique([tournamentId, teamId])
+
   @@index([teamId])
   @@index([rank])
   @@index([category])
-  @@index([mode])
   @@index([tournamentId])
   @@index([year, month])
 }
+
 
 model Tournament {
   id Int @id @default(autoincrement())

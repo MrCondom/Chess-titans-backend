@@ -7,212 +7,137 @@ const playerAuth = require("../middleware/playerAuth");
 const resultService = require("../services/resultService");
 
 
-router.post(
-  "/",
-  playerAuth,
-  async (req, res) => {
-    try {
-      const playerId = req.player.id;
+router.post("/", async (req, res) => {
+  try {
+    const {
+      pairingId,
+      whiteScore,
+      blackScore,
+    } = req.body;
 
-      const {
-        pairingId,
-        whiteScore,
-        blackScore,
-      } = req.body;
+    const result = await resultService.createResult({
+      pairingId,
+      whiteScore,
+      blackScore,
+    });
 
-      const result =
-        await resultService.submitResult({
-          pairingId,
-          playerId,
-          whiteScore,
-          blackScore,
-        });
+    res.status(201).json({
+      success: true,
+      result,
+    });
+  } catch (error) {
+    console.error("CREATE RESULT ERROR:", error);
 
-      return res.status(201).json({
-        success: true,
-        message:
-          "Result submitted successfully. Awaiting approval.",
-        result,
+    if (error.code === "PAIRING_NOT_FOUND") {
+      return res.status(404).json({
+        success: false,
+        message: error.message,
       });
+    }
 
-    } catch (error) {
-      console.error(
-        "SUBMIT RESULT ERROR:",
-        error
-      );
+    if (error.code === "RESULT_ALREADY_EXISTS") {
+      return res.status(409).json({
+        success: false,
+        message: error.message,
+      });
+    }
 
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to create result.",
+    });
+  }
+});
+
+router.put("/:resultId", async (req, res) => {
+  try {
+    const { resultId } = req.params;
+    const {
+      whiteScore,
+      blackScore,
+    } = req.body;
+
+    const result = await resultService.updateResult({
+      resultId,
+      whiteScore,
+      blackScore,
+    });
+
+    res.status(200).json({
+      success: true,
+      result,
+    });
+  } catch (error) {
+    console.error("UPDATE RESULT ERROR:", error);
+
+    if (error.code === "RESULT_NOT_FOUND") {
+      return res.status(404).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to update result.",
+    });
+  }
+});
+
+router.delete("/all", async (req, res) => {
+  try {
+    const result = await resultService.deleteAllResults();
+
+    res.status(200).json({
+      success: true,
+      message: "All results deleted successfully.",
+      ...result,
+    });
+  } catch (error) {
+    console.error("DELETE ALL RESULTS ERROR:", error);
+
+    if (error.code === "PAIRINGS_NOT_FINISHED") {
       return res.status(400).json({
         success: false,
         message: error.message,
-        code:
-          error.code ||
-          "RESULT_SUBMISSION_ERROR",
       });
     }
+
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to delete all results.",
+    });
   }
-);
+});
 
+router.delete("/:resultId", async (req, res) => {
+  try {
+    const { resultId } = req.params;
 
-router.get(
-  "/my",
-  playerAuth,
-  async (req, res) => {
-    try {
-      const playerId = Number(req.player.id);
+    const result = await resultService.deleteResult(
+      resultId
+    );
 
-      if (
-        !Number.isInteger(playerId) ||
-        playerId <= 0
-      ) {
-        return res.status(401).json({
-          success: false,
-          message: "Invalid player session.",
-        });
-      }
+    res.status(200).json({
+      success: true,
+      message: "Result deleted successfully.",
+      result,
+    });
+  } catch (error) {
+    console.error("DELETE RESULT ERROR:", error);
 
-      const {
-        category,
-        round,
-        mode,
-        approvalStatus,
-      } = req.query;
-
-      const results =
-        await resultService.getPlayerResults(
-          playerId,
-          {
-            category,
-            round,
-            mode,
-            approvalStatus,
-          }
-        );
-
-      return res.status(200).json({
-        success: true,
-        count: results.length,
-        results,
-      });
-
-    } catch (error) {
-      console.error(
-        "GET MY RESULTS ERROR:",
-        error
-      );
-
-      return res.status(400).json({
-        success: false,
-        message:
-          error.message ||
-          "Failed to retrieve results.",
-        code:
-          error.code ||
-          "RESULT_ERROR",
-      });
-    }
-  }
-);
-
-
-router.get(
-  "/admin/all",
-  adminAuth,
-  async (req, res) => {
-    try {
-      const {
-        category,
-        round,
-        mode,
-        approvalStatus,
-      } = req.query;
-
-      const results =
-        await resultService.getAllResults({
-          category,
-          round,
-          mode,
-          approvalStatus,
-        });
-
-      return res.status(200).json({
-        success: true,
-        count: results.length,
-        results,
-      });
-
-    } catch (error) {
-      console.error(
-        "GET ALL RESULTS ERROR:",
-        error
-      );
-
-      return res.status(400).json({
-        success: false,
-        message:
-          error.message ||
-          "Failed to retrieve results.",
-        code:
-          error.code ||
-          "RESULT_ERROR",
-      });
-    }
-  }
-);
-
-
-router.get(
-  "/:id",
-  playerAuth,
-  async (req, res) => {
-    try {
-      const result =
-        await resultService.getResultById(
-          req.params.id
-        );
-
-      if (!result) {
-        return res.status(404).json({
-          success: false,
-          message: "Result not found.",
-        });
-      }
-
-      const playerId =
-        Number(req.player.id);
-
-      if (
-        result.whitePlayerId !== playerId &&
-        result.blackPlayerId !== playerId
-      ) {
-        return res.status(403).json({
-          success: false,
-          message:
-            "You are not authorized to view this result.",
-        });
-      }
-
-      return res.json({
-        success: true,
-        result,
-      });
-
-    } catch (error) {
-      console.error(
-        "GET RESULT ERROR:",
-        error
-      );
-
-      return res.status(400).json({
+    if (error.code === "RESULT_NOT_FOUND") {
+      return res.status(404).json({
         success: false,
         message: error.message,
-        code:
-          error.code ||
-          "RESULT_ERROR",
       });
     }
-  }
-);
 
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to delete result.",
+    });
+  }
+});
 
 module.exports = router;
-
