@@ -360,20 +360,43 @@ async function rejectRequest(requestId, adminId, reason = null) {
     throw error;
   }
 
-  const updatedRequest = await prisma.approvalRequest.update({
-    where: {
-      id: request.id,
-    },
-    data: {
-      status: "REJECTED",
-      adminId,
-      reason:
-        typeof reason === "string" && reason.trim()
-          ? reason.trim()
-          : null,
-      reviewedAt: new Date(),
-    },
+  const result = await prisma.$transaction(async (tx) => {
+  
+    // If registration was rejected,
+    // reset the player so they can register again.
+    if (request.type === "REGISTRATION") {
+      await tx.player.update({
+        where: {
+          id: request.playerId,
+        },
+        data: {
+          status: "UNREGISTERED",
+          passwordHash: null,
+        },
+      });
+    }
+  
+    const updatedRequest =
+      await tx.approvalRequest.update({
+        where: {
+          id: request.id,
+        },
+        data: {
+          status: "REJECTED",
+          adminId,
+          reason:
+            typeof reason === "string" &&
+            reason.trim()
+              ? reason.trim()
+              : null,
+          reviewedAt: new Date(),
+        },
+      });
+  
+    return updatedRequest;
   });
+  
+  return result;
 
   return updatedRequest;
 }
@@ -382,19 +405,9 @@ async function rejectRequest(requestId, adminId, reason = null) {
 async function approveRegistration(tx, playerId, data) {
   ensurePlayerId(playerId);
 
-  const {
-    fullName,
-    username,
-    category = "",
-    bio = "",
-    rapidRating = 0,
-    blitzRating = 0,
-    bulletRating = 0,
-  } = data;
-
-  if (!fullName || !username ) {
+  if (!data || typeof data !== "object") {
     const error = new Error(
-      "Registration approval data is incomplete"
+      "Registration approval data is invalid"
     );
 
     error.code = "INVALID_REGISTRATION_DATA";
@@ -402,8 +415,29 @@ async function approveRegistration(tx, playerId, data) {
     throw error;
   }
 
-  const normalizedUsername = normalizeUsername(username);
+  const {
+    bio = "",
+    rapidRating = 0,
+    blitzRating = 0,
+    bulletRating = 0,
+    passwordHash,
+  } = data;
 
+  // Password hash is mandatory for registration approval.
+  if (
+    typeof passwordHash !== "string" ||
+    !passwordHash.trim()
+  ) {
+    const error = new Error(
+      "Registration approval data is missing password hash"
+    );
+
+    error.code = "INVALID_REGISTRATION_DATA";
+
+    throw error;
+  }
+
+  // Get the existing administrator-created player.
   const player = await tx.player.findUnique({
     where: {
       id: playerId,
@@ -411,7 +445,9 @@ async function approveRegistration(tx, playerId, data) {
   });
 
   if (!player) {
-    const error = new Error("Player account not found");
+    const error = new Error(
+      "Player account not found"
+    );
 
     error.code = "PLAYER_NOT_FOUND";
 
@@ -428,55 +464,41 @@ async function approveRegistration(tx, playerId, data) {
     throw error;
   }
 
-  const existingPlayer = await tx.player.findUnique({
-    where: {
-      username: normalizedUsername,
-    },
-  });
-
-  if (
-    existingPlayer &&
-    existingPlayer.id !== playerId
-  ) {
-    const error = new Error(
-      "Username is already in use"
-    );
-
-    error.code = "USERNAME_ALREADY_EXISTS";
-
-    throw error;
-  }
-
+  // The username already belongs to this player,
+  // so there is no need to take it from approval data.
   return tx.player.update({
     where: {
       id: playerId,
     },
 
     data: {
-      fullName: fullName.trim(),
-      username: normalizedUsername,
-
-      category:
-        typeof category === "string"
-          ? category.trim()
-          : "",
+      // Existing administrator-created information
+      // remains unchanged:
+      // fullName
+      // username
+      // category
 
       bio:
         typeof bio === "string"
           ? bio.trim()
           : "",
 
-      rapidRating: Number.isInteger(rapidRating)
-        ? rapidRating
-        : 0,
+      passwordHash,
 
-      blitzRating: Number.isInteger(blitzRating)
-        ? blitzRating
-        : 0,
+      rapidRating:
+        Number.isInteger(rapidRating)
+          ? rapidRating
+          : 0,
 
-      bulletRating: Number.isInteger(bulletRating)
-        ? bulletRating
-        : 0,
+      blitzRating:
+        Number.isInteger(blitzRating)
+          ? blitzRating
+          : 0,
+
+      bulletRating:
+        Number.isInteger(bulletRating)
+          ? bulletRating
+          : 0,
 
       status: "ACTIVE",
     },
@@ -758,6 +780,268 @@ function normalizeUsername(username) {
   return username.trim().toLowerCase();
 }
 
+async function editApprovalRequest(
+  requestId,
+  data
+) {
+  const request = await prisma.approvalRequest.findUnique({
+    where: {
+      id: Number(requestId),
+    },
+  });
+
+  if (!request) {
+    const error = new Error(
+      "Approval request not found"
+    );
+
+    error.code = "APPROVAL_NOT_FOUND";
+
+    throw error;
+  }
+
+  if (request.status !== "PENDING") {
+    const error = new Error(
+      "Only pending approval requests can be edited"
+    );
+
+    error.code = "APPROVAL_NOT_PENDING";
+
+    throw error;
+  }
+
+  if (!data || typeof data !== "object") {
+    const error = new Error(
+      "Approval data must be an object"
+    );
+
+    error.code = "INVALID_APPROVAL_DATA";
+
+    throw error;
+  }
+
+  let currentData = {};
+
+  try {
+    currentData = JSON.parse(request.data);
+  } catch {
+    const error = new Error(
+      "Approval request contains invalid data"
+    );
+
+    error.code = "INVALID_APPROVAL_DATA";
+
+    throw error;
+  }
+
+  /*
+   * Only allow fields that are appropriate
+   * for the approval type.
+   */
+
+  let updatedData = {
+    ...currentData,
+  };
+
+  switch (request.type) {
+    case "REGISTRATION":
+    case "PROFILE_CHANGE": {
+
+      if (data.fullName !== undefined) {
+        if (
+          typeof data.fullName !== "string" ||
+          !data.fullName.trim()
+        ) {
+          throw new Error(
+            "Full name must be a valid string"
+          );
+        }
+
+        updatedData.fullName =
+          data.fullName.trim();
+      }
+
+      if (data.username !== undefined) {
+        if (
+          typeof data.username !== "string" ||
+          !data.username.trim()
+        ) {
+          throw new Error(
+            "Username must be a valid string"
+          );
+        }
+
+        updatedData.username =
+          normalizeUsername(data.username);
+      }
+
+      if (data.category !== undefined) {
+        if (typeof data.category !== "string") {
+          throw new Error(
+            "Category must be a string"
+          );
+        }
+
+        updatedData.category =
+          data.category.trim();
+      }
+
+      if (data.bio !== undefined) {
+        if (typeof data.bio !== "string") {
+          throw new Error(
+            "Bio must be a string"
+          );
+        }
+
+        updatedData.bio =
+          data.bio.trim();
+      }
+
+      if (data.rapidRating !== undefined) {
+        if (!Number.isInteger(data.rapidRating)) {
+          throw new Error(
+            "Rapid rating must be an integer"
+          );
+        }
+
+        updatedData.rapidRating =
+          data.rapidRating;
+      }
+
+      if (data.blitzRating !== undefined) {
+        if (!Number.isInteger(data.blitzRating)) {
+          throw new Error(
+            "Blitz rating must be an integer"
+          );
+        }
+
+        updatedData.blitzRating =
+          data.blitzRating;
+      }
+
+      if (data.bulletRating !== undefined) {
+        if (!Number.isInteger(data.bulletRating)) {
+          throw new Error(
+            "Bullet rating must be an integer"
+          );
+        }
+
+        updatedData.bulletRating =
+          data.bulletRating;
+      }
+
+      break;
+    }
+
+    case "BIO_CHANGE": {
+
+      if (data.bio !== undefined) {
+        if (typeof data.bio !== "string") {
+          throw new Error(
+            "Bio must be a string"
+          );
+        }
+
+        updatedData.bio =
+          data.bio.trim();
+      }
+
+      break;
+    }
+
+    case "USERNAME_CHANGE": {
+
+      if (data.username !== undefined) {
+        if (
+          typeof data.username !== "string" ||
+          !data.username.trim()
+        ) {
+          throw new Error(
+            "Username must be a valid string"
+          );
+        }
+
+        updatedData.username =
+          normalizeUsername(data.username);
+      }
+
+      break;
+    }
+
+    case "RATING_CHANGE": {
+
+      if (data.rapidRating !== undefined) {
+        if (!Number.isInteger(data.rapidRating)) {
+          throw new Error(
+            "Invalid rapid rating"
+          );
+        }
+
+        updatedData.rapidRating =
+          data.rapidRating;
+      }
+
+      if (data.blitzRating !== undefined) {
+        if (!Number.isInteger(data.blitzRating)) {
+          throw new Error(
+            "Invalid blitz rating"
+          );
+        }
+
+        updatedData.blitzRating =
+          data.blitzRating;
+      }
+
+      if (data.bulletRating !== undefined) {
+        if (!Number.isInteger(data.bulletRating)) {
+          throw new Error(
+            "Invalid bullet rating"
+          );
+        }
+
+        updatedData.bulletRating =
+          data.bulletRating;
+      }
+
+      break;
+    }
+
+    default: {
+      const error = new Error(
+        `Approval type ${request.type} cannot be edited`
+      );
+
+      error.code =
+        "UNSUPPORTED_APPROVAL_EDIT";
+
+      throw error;
+    }
+  }
+
+  return prisma.approvalRequest.update({
+    where: {
+      id: request.id,
+    },
+
+    data: {
+      data: JSON.stringify(updatedData),
+    },
+
+    include: {
+      player: {
+        select: {
+          id: true,
+          fullName: true,
+          username: true,
+          status: true,
+          category: true,
+          bio: true,
+        },
+      },
+    },
+  });
+}
+
 module.exports = {
   createApprovalRequest,
   getApprovalRequest,
@@ -765,4 +1049,5 @@ module.exports = {
   getPlayerApprovalRequests,
   approveRequest,
   rejectRequest,
+  editApprovalRequest
 };

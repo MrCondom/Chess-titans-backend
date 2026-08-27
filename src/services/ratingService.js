@@ -12,6 +12,9 @@ const {
 } = require("../utils/streak");
 
 
+// =====================================================
+// VALIDATION
+// =====================================================
 
 function validateId(value, name = "ID") {
   const id = Number(value);
@@ -26,6 +29,30 @@ function validateId(value, name = "ID") {
 }
 
 
+function validateMode(mode) {
+  if (
+    mode !== undefined &&
+    mode !== null &&
+    mode !== "RAPID" &&
+    mode !== "BLITZ" &&
+    mode !== "BULLET"
+  ) {
+    const error = new Error(
+      "Invalid game mode. Use RAPID, BLITZ or BULLET."
+    );
+
+    error.code = "INVALID_GAME_MODE";
+
+    throw error;
+  }
+
+  return mode;
+}
+
+
+// =====================================================
+// PLAYER RATING
+// =====================================================
 
 function getPlayerRating(player, mode) {
   switch (mode) {
@@ -47,6 +74,9 @@ function getPlayerRating(player, mode) {
 }
 
 
+// =====================================================
+// STREAK MULTIPLIER
+// =====================================================
 
 function calculateStreakMultiplier(
   results,
@@ -81,6 +111,9 @@ function calculateStreakMultiplier(
 }
 
 
+// =====================================================
+// CALCULATE GAINS
+// =====================================================
 
 async function calculateGains(tx, gameResult) {
   const whiteRating = getPlayerRating(
@@ -93,13 +126,15 @@ async function calculateGains(tx, gameResult) {
     gameResult.mode
   );
 
-  const { changeA, changeB } =
-    calculateRatingChange(
-      whiteRating,
-      blackRating,
-      gameResult.whiteScore,
-      gameResult.blackScore
-    );
+  const {
+    changeA,
+    changeB,
+  } = calculateRatingChange(
+    whiteRating,
+    blackRating,
+    gameResult.whiteScore,
+    gameResult.blackScore
+  );
 
   const previousResults =
     await tx.gameResult.findMany({
@@ -154,121 +189,432 @@ async function calculateGains(tx, gameResult) {
     );
 
   return {
-    whiteGain: changeA * whiteMultiplier,
-    blackGain: changeB * blackMultiplier,
+    whiteGain:
+      changeA * whiteMultiplier,
+
+    blackGain:
+      changeB * blackMultiplier,
   };
 }
 
 
+// =====================================================
+// GET RESULTS
+// =====================================================
+
+async function getAllResults(options = {}) {
+  const {
+    approvalStatus,
+    category,
+    mode,
+    round,
+  } = options;
+
+  validateMode(mode);
+
+  const where = {};
+
+  // ---------------------------------------------
+  // Approval status
+  // ---------------------------------------------
+
+  if (approvalStatus !== undefined) {
+    const validStatuses = [
+      "PENDING",
+      "APPROVED",
+      "REJECTED",
+    ];
+
+    if (
+      !validStatuses.includes(
+        approvalStatus
+      )
+    ) {
+      const error = new Error(
+        "Invalid approval status."
+      );
+
+      error.code =
+        "INVALID_APPROVAL_STATUS";
+
+      throw error;
+    }
+
+    where.approvalStatus =
+      approvalStatus;
+  }
+
+  // ---------------------------------------------
+  // Category
+  // ---------------------------------------------
+
+  if (
+    category !== undefined &&
+    category !== null &&
+    String(category).trim() !== ""
+  ) {
+    where.category =
+      String(category)
+        .trim()
+        .toLowerCase();
+  }
+
+  // ---------------------------------------------
+  // Mode
+  // ---------------------------------------------
+
+  if (mode) {
+    where.mode = mode;
+  }
+
+  // ---------------------------------------------
+  // Round
+  // ---------------------------------------------
+
+  if (
+    round !== undefined &&
+    round !== null &&
+    String(round).trim() !== ""
+  ) {
+    const parsedRound = Number(round);
+
+    if (
+      !Number.isInteger(parsedRound) ||
+      parsedRound <= 0
+    ) {
+      const error = new Error(
+        "Round must be a positive integer."
+      );
+
+      error.code =
+        "INVALID_ROUND";
+
+      throw error;
+    }
+
+    where.round = parsedRound;
+  }
+
+  return prisma.gameResult.findMany({
+    where,
+
+    include: {
+      whitePlayer: {
+        select: {
+          id: true,
+          username: true,
+          fullName: true,
+        },
+      },
+
+      blackPlayer: {
+        select: {
+          id: true,
+          username: true,
+          fullName: true,
+        },
+      },
+
+      pairing: {
+        select: {
+          id: true,
+          tournamentId: true,
+
+          whitePlayer: {
+            select: {
+              id: true,
+              username: true,
+              fullName: true,
+            },
+          },
+
+          blackPlayer: {
+            select: {
+              id: true,
+              username: true,
+              fullName: true,
+            },
+          },
+        },
+      },
+    },
+
+    orderBy: {
+      date: "asc",
+    },
+  });
+}
+
+
+// =====================================================
+// APPROVE RESULT
+// =====================================================
 
 async function approveResult(resultId) {
-  resultId = validateId(resultId, "result ID");
+  resultId = validateId(
+    resultId,
+    "result ID"
+  );
 
-  return prisma.$transaction(async (tx) => {
-    const gameResult =
-      await tx.gameResult.findUnique({
+  return prisma.$transaction(
+    async (tx) => {
+      const gameResult =
+        await tx.gameResult.findUnique({
+          where: {
+            id: resultId,
+          },
+
+          include: {
+            whitePlayer: true,
+            blackPlayer: true,
+            pairing: true,
+          },
+        });
+
+      if (!gameResult) {
+        const error = new Error(
+          "Result not found."
+        );
+
+        error.code =
+          "RESULT_NOT_FOUND";
+
+        throw error;
+      }
+
+      if (
+        gameResult.approvalStatus !==
+        "PENDING"
+      ) {
+        const error = new Error(
+          `Result has already been ${gameResult.approvalStatus.toLowerCase()}.`
+        );
+
+        error.code =
+          "RESULT_ALREADY_REVIEWED";
+
+        throw error;
+      }
+
+      const {
+        whiteGain,
+        blackGain,
+      } = await calculateGains(
+        tx,
+        gameResult
+      );
+
+      const now = new Date();
+
+      const updatedResult =
+        await tx.gameResult.update({
+          where: {
+            id: gameResult.id,
+          },
+
+          data: {
+            approvalStatus:
+              "APPROVED",
+
+            approvedAt:
+              now,
+
+            whiteRatingChange:
+              whiteGain,
+
+            blackRatingChange:
+              blackGain,
+
+            rejectionReason:
+              null,
+          },
+        });
+
+      await tx.ratingGain.createMany({
+        data: [
+          {
+            playerId:
+              gameResult.whitePlayerId,
+
+            pairingId:
+              gameResult.pairingId,
+
+            tournamentId:
+              gameResult.pairing?.tournamentId ||
+              null,
+
+            mode:
+              gameResult.mode,
+
+            amount:
+              whiteGain,
+
+            approvalStatus:
+              "APPROVED",
+
+            approvedAt:
+              now,
+
+            isApplied:
+              false,
+
+            reason:
+              `Round ${gameResult.round} result`,
+          },
+
+          {
+            playerId:
+              gameResult.blackPlayerId,
+
+            pairingId:
+              gameResult.pairingId,
+
+            tournamentId:
+              gameResult.pairing?.tournamentId ||
+              null,
+
+            mode:
+              gameResult.mode,
+
+            amount:
+              blackGain,
+
+            approvalStatus:
+              "APPROVED",
+
+            approvedAt:
+              now,
+
+            isApplied:
+              false,
+
+            reason:
+              `Round ${gameResult.round} result`,
+          },
+        ],
+      });
+
+      return updatedResult;
+    }
+  );
+}
+
+
+// =====================================================
+// REJECT RESULT
+// =====================================================
+
+async function rejectResult(
+  resultId,
+  reason
+) {
+  resultId = validateId(
+    resultId,
+    "result ID"
+  );
+
+  // ---------------------------------------------
+  // Validate reason
+  // ---------------------------------------------
+
+  if (
+    reason !== undefined &&
+    reason !== null &&
+    typeof reason !== "string"
+  ) {
+    const error = new Error(
+      "Rejection reason must be a string."
+    );
+
+    error.code =
+      "INVALID_REJECTION_REASON";
+
+    throw error;
+  }
+
+  const cleanReason =
+    typeof reason === "string"
+      ? reason.trim()
+      : null;
+
+  if (
+    cleanReason &&
+    cleanReason.length > 1000
+  ) {
+    const error = new Error(
+      "Rejection reason is too long."
+    );
+
+    error.code =
+      "REJECTION_REASON_TOO_LONG";
+
+    throw error;
+  }
+
+  return prisma.$transaction(
+    async (tx) => {
+      const gameResult =
+        await tx.gameResult.findUnique({
+          where: {
+            id: resultId,
+          },
+        });
+
+      if (!gameResult) {
+        const error = new Error(
+          "Result not found."
+        );
+
+        error.code =
+          "RESULT_NOT_FOUND";
+
+        throw error;
+      }
+
+      if (
+        gameResult.approvalStatus !==
+        "PENDING"
+      ) {
+        const error = new Error(
+          `Result has already been ${gameResult.approvalStatus.toLowerCase()}.`
+        );
+
+        error.code =
+          "RESULT_ALREADY_REVIEWED";
+
+        throw error;
+      }
+
+      return tx.gameResult.update({
         where: {
           id: resultId,
         },
 
-        include: {
-          whitePlayer: true,
-          blackPlayer: true,
-          pairing: true,
-        },
-      });
-
-    if (!gameResult) {
-      const error = new Error("Result not found.");
-      error.code = "RESULT_NOT_FOUND";
-      throw error;
-    }
-
-    if (
-      gameResult.approvalStatus !== "PENDING"
-    ) {
-      const error = new Error(
-        `Result has already been ${gameResult.approvalStatus.toLowerCase()}.`
-      );
-
-      error.code = "RESULT_ALREADY_REVIEWED";
-      throw error;
-    }
-
-    const {
-      whiteGain,
-      blackGain,
-    } = await calculateGains(
-      tx,
-      gameResult
-    );
-
-    const now = new Date();
-
-    const updatedResult =
-      await tx.gameResult.update({
-        where: {
-          id: gameResult.id,
-        },
-
         data: {
-          approvalStatus: "APPROVED",
-          approvedAt: now,
-          whiteRatingChange: whiteGain,
-          blackRatingChange: blackGain,
-          rejectionReason: null,
+          approvalStatus:
+            "REJECTED",
+
+          rejectionReason:
+            cleanReason,
+
+          approvedAt:
+            null,
+
+          whiteRatingChange:
+            null,
+
+          blackRatingChange:
+            null,
         },
       });
-
-    await tx.ratingGain.createMany({
-      data: [
-        {
-          playerId:
-            gameResult.whitePlayerId,
-          pairingId:
-            gameResult.pairingId,
-          tournamentId:
-            gameResult.pairing?.tournamentId || null,
-          mode:
-            gameResult.mode,
-          amount:
-            whiteGain,
-          approvalStatus:
-            "APPROVED",
-          approvedAt:
-            now,
-          isApplied:
-            false,
-          reason:
-            `Round ${gameResult.round} result`,
-        },
-
-        {
-          playerId:
-            gameResult.blackPlayerId,
-          pairingId:
-            gameResult.pairingId,
-          tournamentId:
-            gameResult.pairing?.tournamentId || null,
-          mode:
-            gameResult.mode,
-          amount:
-            blackGain,
-          approvalStatus:
-            "APPROVED",
-          approvedAt:
-            now,
-          isApplied:
-            false,
-          reason:
-            `Round ${gameResult.round} result`,
-        },
-      ],
-    });
-
-    return updatedResult;
-  });
+    }
+  );
 }
+
+
+// =====================================================
+// RECALCULATE EDITED RESULT GAINS
+// =====================================================
 
 async function recalculateEditedResultGains(
   resultId
@@ -278,129 +624,153 @@ async function recalculateEditedResultGains(
     "result ID"
   );
 
-  return prisma.$transaction(async (tx) => {
-    const gameResult =
-      await tx.gameResult.findUnique({
-        where: {
-          id: resultId,
-        },
-
-        include: {
-          whitePlayer: true,
-          blackPlayer: true,
-          pairing: true,
-        },
-      });
-
-    if (!gameResult) {
-      const error = new Error(
-        "Result not found."
-      );
-
-      error.code = "RESULT_NOT_FOUND";
-      throw error;
-    }
-
-   
-    if (
-      gameResult.approvalStatus !==
-      "APPROVED"
-    ) {
-      return gameResult;
-    }
-
-    const {
-      whiteGain,
-      blackGain,
-    } = await calculateGains(
-      tx,
-      gameResult
-    );
-
-    const gains =
-      await tx.ratingGain.findMany({
-        where: {
-          pairingId:
-            gameResult.pairingId,
-
-          playerId: {
-            in: [
-              gameResult.whitePlayerId,
-              gameResult.blackPlayerId,
-            ],
+  return prisma.$transaction(
+    async (tx) => {
+      const gameResult =
+        await tx.gameResult.findUnique({
+          where: {
+            id: resultId,
           },
 
-          isApplied: false,
-        },
-      });
+          include: {
+            whitePlayer: true,
+            blackPlayer: true,
+            pairing: true,
+          },
+        });
 
-    const whiteRatingGain =
-      gains.find(
-        (gain) =>
-          gain.playerId ===
-          gameResult.whitePlayerId
+      if (!gameResult) {
+        const error = new Error(
+          "Result not found."
+        );
+
+        error.code =
+          "RESULT_NOT_FOUND";
+
+        throw error;
+      }
+
+      if (
+        gameResult.approvalStatus !==
+        "APPROVED"
+      ) {
+        return gameResult;
+      }
+
+      const {
+        whiteGain,
+        blackGain,
+      } = await calculateGains(
+        tx,
+        gameResult
       );
 
-    const blackRatingGain =
-      gains.find(
-        (gain) =>
-          gain.playerId ===
-          gameResult.blackPlayerId
-      );
+      const gains =
+        await tx.ratingGain.findMany({
+          where: {
+            pairingId:
+              gameResult.pairingId,
 
-    if (whiteRatingGain) {
-      await tx.ratingGain.update({
+            playerId: {
+              in: [
+                gameResult.whitePlayerId,
+                gameResult.blackPlayerId,
+              ],
+            },
+
+            isApplied: false,
+          },
+        });
+
+      const whiteRatingGain =
+        gains.find(
+          (gain) =>
+            gain.playerId ===
+            gameResult.whitePlayerId
+        );
+
+      const blackRatingGain =
+        gains.find(
+          (gain) =>
+            gain.playerId ===
+            gameResult.blackPlayerId
+        );
+
+      if (whiteRatingGain) {
+        await tx.ratingGain.update({
+          where: {
+            id:
+              whiteRatingGain.id,
+          },
+
+          data: {
+            amount:
+              whiteGain,
+
+            approvalStatus:
+              "APPROVED",
+
+            approvedAt:
+              whiteRatingGain.approvedAt ||
+              new Date(),
+
+            isApplied:
+              false,
+
+            appliedAt:
+              null,
+          },
+        });
+      }
+
+      if (blackRatingGain) {
+        await tx.ratingGain.update({
+          where: {
+            id:
+              blackRatingGain.id,
+          },
+
+          data: {
+            amount:
+              blackGain,
+
+            approvalStatus:
+              "APPROVED",
+
+            approvedAt:
+              blackRatingGain.approvedAt ||
+              new Date(),
+
+            isApplied:
+              false,
+
+            appliedAt:
+              null,
+          },
+        });
+      }
+
+      return tx.gameResult.update({
         where: {
-          id: whiteRatingGain.id,
+          id: gameResult.id,
         },
 
         data: {
-          amount: whiteGain,
-          approvalStatus: "APPROVED",
-          approvedAt:
-            whiteRatingGain.approvedAt ||
-            new Date(),
-          isApplied: false,
-          appliedAt: null,
+          whiteRatingChange:
+            whiteGain,
+
+          blackRatingChange:
+            blackGain,
         },
       });
     }
-
-    if (blackRatingGain) {
-      await tx.ratingGain.update({
-        where: {
-          id: blackRatingGain.id,
-        },
-
-        data: {
-          amount: blackGain,
-          approvalStatus: "APPROVED",
-          approvedAt:
-            blackRatingGain.approvedAt ||
-            new Date(),
-          isApplied: false,
-          appliedAt: null,
-        },
-      });
-    }
-
-    /*
-     * Keep the calculated values on GameResult
-     * synchronized with RatingGain.
-     */
-    return tx.gameResult.update({
-      where: {
-        id: gameResult.id,
-      },
-
-      data: {
-        whiteRatingChange: whiteGain,
-        blackRatingChange: blackGain,
-      },
-    });
-  });
+  );
 }
 
+
+// =====================================================
+// APPLY RATING GAIN
+// =====================================================
 
 async function applyRatingGain(
   ratingGainId
@@ -435,7 +805,8 @@ async function applyRatingGain(
       }
 
       if (
-        gain.approvalStatus !== "APPROVED"
+        gain.approvalStatus !==
+        "APPROVED"
       ) {
         const error = new Error(
           "Rating gain is not approved."
@@ -464,8 +835,11 @@ async function applyRatingGain(
         },
 
         data: {
-          isApplied: true,
-          appliedAt: new Date(),
+          isApplied:
+            true,
+
+          appliedAt:
+            new Date(),
         },
       });
     }
@@ -473,6 +847,9 @@ async function applyRatingGain(
 }
 
 
+// =====================================================
+// RATING UPDATE
+// =====================================================
 
 function getRatingUpdate(
   mode,
@@ -484,6 +861,7 @@ function getRatingUpdate(
         rapidRating: {
           increment: amount,
         },
+
         rapidGain: {
           increment: amount,
         },
@@ -494,6 +872,7 @@ function getRatingUpdate(
         blitzRating: {
           increment: amount,
         },
+
         blitzGain: {
           increment: amount,
         },
@@ -504,6 +883,7 @@ function getRatingUpdate(
         bulletRating: {
           increment: amount,
         },
+
         bulletGain: {
           increment: amount,
         },
@@ -522,20 +902,34 @@ function getRatingUpdate(
   }
 }
 
+
+// =====================================================
+// AUTO APPLY
+// =====================================================
+
 async function autoApplyPendingRatingGains() {
   const sevenDaysAgo =
     new Date(
       Date.now() -
-        7 * 24 * 60 * 60 * 1000
+        7 *
+          24 *
+          60 *
+          60 *
+          1000
     );
 
   const gains =
     await prisma.ratingGain.findMany({
       where: {
-        approvalStatus: "APPROVED",
-        isApplied: false,
+        approvalStatus:
+          "APPROVED",
+
+        isApplied:
+          false,
+
         approvedAt: {
-          lte: sevenDaysAgo,
+          lte:
+            sevenDaysAgo,
         },
       },
 
@@ -548,7 +942,10 @@ async function autoApplyPendingRatingGains() {
 
   for (const gain of gains) {
     try {
-      await applyRatingGain(gain.id);
+      await applyRatingGain(
+        gain.id
+      );
+
       applied++;
     } catch (error) {
       console.error(
@@ -559,15 +956,22 @@ async function autoApplyPendingRatingGains() {
   }
 
   return {
-    found: gains.length,
+    found:
+      gains.length,
+
     applied,
   };
 }
 
 
+// =====================================================
+// EXPORTS
+// =====================================================
 
 module.exports = {
+  getAllResults,
   approveResult,
+  rejectResult,
   recalculateEditedResultGains,
   applyRatingGain,
   autoApplyPendingRatingGains,

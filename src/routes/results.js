@@ -48,59 +48,6 @@ router.patch(
 
 
 router.post(
-  "/results/:resultId/approve",
-  async (req, res) => {
-    try {
-      const result =
-        await ratingService.approveResult(
-          req.params.resultId
-        );
-
-      return res.status(200).json({
-        success: true,
-        message: "Result approved successfully.",
-        data: result,
-      });
-
-    } catch (error) {
-      console.error(
-        "APPROVE RESULT ERROR:",
-        error
-      );
-
-      if (error.code === "RESULT_NOT_FOUND") {
-        return res.status(404).json({
-          success: false,
-          message: error.message,
-        });
-      }
-
-      if (
-        error.code === "RESULT_ALREADY_REVIEWED"
-      ) {
-        return res.status(409).json({
-          success: false,
-          message: error.message,
-        });
-      }
-
-      if (error.code === "INVALID_ID") {
-        return res.status(400).json({
-          success: false,
-          message: error.message,
-        });
-      }
-
-      return res.status(500).json({
-        success: false,
-        message: "Failed to approve result.",
-      });
-    }
-  }
-);
-
-
-router.post(
   "/rating-gains/:ratingGainId/apply",
   async (req, res) => {
     try {

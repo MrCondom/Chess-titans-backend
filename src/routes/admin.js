@@ -6,37 +6,377 @@ const { adminAuth } = require("../middleware/adminAuth");
 const approvalService = require("../services/approvalService");
 const ratingService = require("../services/ratingService");
 
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const rateLimit = require("express-rate-limit");
 
-router.get("/approvals", adminAuth, async (req, res) => {
+
+const adminLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+
+  message: {
+    success: false,
+    message: "Too many login attempts. Please try again later.",
+  },
+});
+
+
+router.post(
+  "/login",
+  adminLoginLimiter,
+  async (req, res) => {
+    try {
+      const { username, password } = req.body;
+
+      if (
+        typeof username !== "string" ||
+        !username.trim() ||
+        typeof password !== "string" ||
+        !password
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Username and password are required.",
+        });
+      }
+
+      const cleanUsername = username.trim().toLowerCase();
+
+      const admin = await prisma.admin.findUnique({
+        where: {
+          username: cleanUsername,
+        },
+      });
+
+      // Do not reveal whether the username exists.
+      if (!admin || !admin.passwordHash) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid username or password.",
+        });
+      }
+
+      const passwordMatches = await bcrypt.compare(
+        password,
+        admin.passwordHash
+      );
+
+      if (!passwordMatches) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid username or password.",
+        });
+      }
+
+      if (admin.status !== "ACTIVE") {
+        return res.status(403).json({
+          success: false,
+          message: "Admin account is inactive.",
+        });
+      }
+
+      if (!process.env.JWT_SECRET) {
+        throw new Error("JWT_SECRET is not configured.");
+      }
+
+      const token = jwt.sign(
+        {
+          adminId: admin.id,
+          username: admin.username,
+          type: "admin",
+        },
+        process.env.JWT_SECRET,
+        {
+          expiresIn: process.env.JWT_EXPIRES_IN || "7d",
+        }
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: "Admin login successful.",
+        token,
+        admin: {
+          id: admin.id,
+          username: admin.username,
+          status: admin.status,
+        },
+      });
+
+    } catch (error) {
+      console.error("ADMIN LOGIN ERROR:", error);
+
+      return res.status(500).json({
+        success: false,
+        message: "Admin login failed.",
+      });
+    }
+  }
+);
+
+router.post("/players", adminAuth, async (req, res) => {
   try {
-    const approvals = await prisma.approvalRequest.findMany({
+    const {
+      username,
+      fullName,
+      category,
+    } = req.body;
+
+    if (
+      typeof username !== "string" ||
+      !username.trim()
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Username is required.",
+      });
+    }
+
+    const cleanUsername =
+      username.trim().toLowerCase();
+
+    if (
+      !/^[a-z0-9_]{3,30}$/.test(
+        cleanUsername
+      )
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Username must be 3-30 characters and contain only letters, numbers and underscores.",
+      });
+    }
+
+
+    if (
+      typeof fullName !== "string" ||
+      !fullName.trim()
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Full name is required.",
+      });
+    }
+
+    const cleanFullName =
+      fullName.trim();
+
+    if (cleanFullName.length > 100) {
+      return res.status(400).json({
+        success: false,
+        message: "Full name is too long.",
+      });
+    }
+
+    if (
+      typeof category !== "string" ||
+      !category.trim()
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Category is required.",
+      });
+    }
+
+    const cleanCategory =
+      category.trim().toLowerCase();
+
+
+    const existingPlayer =
+      await prisma.player.findUnique({
+        where: {
+          username: cleanUsername,
+        },
+      });
+
+    if (existingPlayer) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "A player with this username already exists.",
+      });
+    }
+    const player = await prisma.player.create({
+      data: {
+        username: cleanUsername,
+        fullName: cleanFullName,
+    
+        passwordHash: null,
+    
+        status: "UNREGISTERED",
+    
+        category: cleanCategory,
+        bio: "",
+    
+        rapidRating: 0,
+        blitzRating: 0,
+        bulletRating: 0,
+    
+        rapidGain: 0,
+        blitzGain: 0,
+        bulletGain: 0,
+    
+        totalPoints: 0,
+        totalRounds: 0,
+    
+        totalWins: 0,
+        totalLosses: 0,
+        totalDraws: 0,
+    
+        tournamentWins: 0,
+      },
+    });
+    
+    return res.status(201).json({
+      success: true,
+      message:
+        "Player created successfully.",
+      player: {
+        id: player.id,
+        username: player.username,
+        fullName: player.fullName,
+        status: player.status,
+        category: player.category,
+        bio: player.bio,
+        createdAt: player.createdAt,
+      },
+    });
+
+  } catch (error) {
+    console.error(
+      "ADMIN CREATE PLAYER ERROR:",
+      error
+    );
+
+    if (error.code === "P2002") {
+      return res.status(409).json({
+        success: false,
+        message:
+          "A player with this username already exists.",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Failed to create player.",
+    });
+  }
+});
+
+router.get("/players/unregistered", adminAuth, async (req, res) => {
+  try {
+    const players = await prisma.player.findMany({
       where: {
-        status: "PENDING",
+        status: "UNREGISTERED",
       },
 
-      include: {
-        player: {
-          select: {
-            id: true,
-            fullName: true,
-            username: true,
-            category: true,
-            status: true,
-            createdAt: true,
-          },
-        },
+      select: {
+        id: true,
+        username: true,
+        fullName: true,
+        category: true,
+        status: true,
+        createdAt: true,
       },
 
       orderBy: {
-        createdAt: "asc",
+        createdAt: "desc",
       },
     });
 
     return res.status(200).json({
       success: true,
-      count: approvals.length,
-      approvals,
+      count: players.length,
+      players,
     });
+  } catch (error) {
+    console.error("GET UNREGISTERED PLAYERS ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retrieve unregistered players.",
+    });
+  }
+});
+
+router.delete("/players/:id", adminAuth, async (req, res) => {
+  try {
+    const playerId = Number(req.params.id);
+
+    if (!Number.isInteger(playerId) || playerId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid player ID.",
+      });
+    }
+
+    const player = await prisma.player.findUnique({
+      where: {
+        id: playerId,
+      },
+    });
+
+    if (!player) {
+      return res.status(404).json({
+        success: false,
+        message: "Player not found.",
+      });
+    }
+
+    await prisma.player.delete({
+      where: {
+        id: playerId,
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Player deleted successfully.",
+      player: {
+        id: player.id,
+        username: player.username,
+        fullName: player.fullName,
+      },
+    });
+  } catch (error) {
+    console.error("DELETE PLAYER ERROR:", error);
+
+    if (error.code === "P2003") {
+      return res.status(409).json({
+        success: false,
+        message:
+          "This player cannot be deleted because other records depend on this player.",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete player.",
+    });
+  }
+});
+
+router.get("/approvals", adminAuth, async (req, res) => {
+  try {
+    const page = req.query.page || 1;
+    const limit = req.query.limit || 20;
+    const type = req.query.type || null;
+
+    const result = await approvalService.getPendingApprovals({
+      page,
+      limit,
+      type,
+    });
+    
+    return res.status(200).json({
+      success: true,
+      approvals: result.requests,
+      pagination: result.pagination,
+    });
+
   } catch (error) {
     console.error("GET PENDING APPROVALS ERROR:", error);
 
@@ -120,10 +460,6 @@ router.post("/approvals/:id/approve", adminAuth, async (req, res) => {
       });
     }
 
-    /*
-     * adminAuth should attach the authenticated admin
-     * to req.admin.
-     */
     if (!req.admin || !req.admin.id) {
       return res.status(401).json({
         success: false,
@@ -321,6 +657,106 @@ router.get("/approvals/history", adminAuth, async (req, res) => {
   }
 });
 
+router.patch(
+  "/approvals/:id",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const approvalId = Number(req.params.id);
+
+      if (
+        !Number.isInteger(approvalId) ||
+        approvalId <= 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid approval request ID.",
+        });
+      }
+
+      if (!req.admin || !req.admin.id) {
+        return res.status(401).json({
+          success: false,
+          message: "Administrator authentication required.",
+        });
+      }
+
+      if (
+        !req.body ||
+        typeof req.body !== "object" ||
+        Array.isArray(req.body)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Approval data must be an object.",
+        });
+      }
+
+      const approval =
+        await approvalService.editApprovalRequest(
+          approvalId,
+          req.body
+        );
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "Approval request updated successfully.",
+        approval,
+      });
+
+    } catch (error) {
+      console.error(
+        "EDIT APPROVAL REQUEST ERROR:",
+        error
+      );
+
+      if (error.code === "APPROVAL_NOT_FOUND") {
+        return res.status(404).json({
+          success: false,
+          message: error.message,
+          code: error.code,
+        });
+      }
+
+      if (
+        error.code === "APPROVAL_NOT_PENDING"
+      ) {
+        return res.status(409).json({
+          success: false,
+          message: error.message,
+          code: error.code,
+        });
+      }
+
+      if (
+        error.code === "UNSUPPORTED_APPROVAL_EDIT"
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: error.message,
+          code: error.code,
+        });
+      }
+
+      if (
+        error.code === "INVALID_APPROVAL_DATA"
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: error.message,
+          code: error.code,
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to update approval request.",
+      });
+    }
+  }
+);
 
 router.get(
   "/results/pending",
@@ -428,5 +864,99 @@ router.post(
   }
 );
 
+router.get("/me", adminAuth, async (req, res) => {
+  try {
+    return res.status(200).json({
+      success: true,
+      admin: {
+        id: req.admin.id,
+        username: req.admin.username,
+        ipAddress: req.admin.ipAddress,
+      },
+    });
+  } catch (error) {
+    console.error("GET ADMIN ME ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retrieve admin information.",
+    });
+  }
+});
+
+
+router.post(
+  "/players/:username/reset-registration",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const username = req.params.username.trim().toLowerCase();
+
+      const player = await prisma.player.findUnique({
+        where: {
+          username,
+        },
+      });
+
+      if (!player) {
+        return res.status(404).json({
+          success: false,
+          message: "Player not found.",
+        });
+      }
+
+      const result = await prisma.$transaction(async (tx) => {
+
+        // Reset the player registration state
+        const updatedPlayer = await tx.player.update({
+          where: {
+            id: player.id,
+          },
+          data: {
+            status: "UNREGISTERED",
+            passwordHash: null,
+          },
+        });
+
+        // Remove old PENDING/REJECTED registration requests
+        await tx.approvalRequest.deleteMany({
+          where: {
+            playerId: player.id,
+            type: "REGISTRATION",
+            status: {
+              in: ["PENDING", "REJECTED"],
+            },
+          },
+        });
+
+        return updatedPlayer;
+      });
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "Player registration has been completely reset.",
+        player: {
+          id: result.id,
+          username: result.username,
+          status: result.status,
+          passwordHash: result.passwordHash,
+        },
+      });
+
+    } catch (error) {
+      console.error(
+        "RESET PLAYER REGISTRATION ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to reset player registration.",
+      });
+    }
+  }
+);
 
 module.exports = router;

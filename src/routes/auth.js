@@ -6,6 +6,7 @@ const rateLimit = require("express-rate-limit");
 
 const prisma = require("../lib/prisma");
 const playerAuth = require("../middleware/playerAuth");
+const approvalService = require("../services/approvalService");
 
 const router = express.Router();
 
@@ -42,11 +43,6 @@ function normalizeUsername(username) {
   return String(username || "")
     .trim()
     .toLowerCase();
-}
-
-
-function cleanString(value) {
-  return String(value || "").trim();
 }
 
 
@@ -121,172 +117,201 @@ function publicPlayer(player) {
 }
 
 
-router.post(
-  "/register",
-  registrationLimiter,
-  async (req, res) => {
-    try {
-      const {
-        username,
-        password,
-        fullName,
-        bio,
-        category,
-      } = req.body;
+router.post("/register", registrationLimiter, async (req, res) =>  {
+  try {
+    const {
+      username,
+      password,
+      bio = "",
+      rapidRating = 0,
+      blitzRating = 0,
+      bulletRating = 0,
+    } = req.body;
 
-      const cleanUsername = normalizeUsername(username);
-      const cleanFullName = cleanString(fullName);
-      const cleanBio = cleanString(bio);
-      const cleanCategory = cleanString(category).toLowerCase();
+    // ------------------------------------------
+    // BASIC VALIDATION
+    // ------------------------------------------
 
-     
-      if (!cleanUsername) {
+    if (
+      typeof username !== "string" ||
+      !username.trim()
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Username is required.",
+      });
+    }
+
+    if (
+      typeof password !== "string" ||
+      !password
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Password is required.",
+      });
+    }
+
+    const cleanUsername =
+      username.trim().toLowerCase();
+
+    if (
+      !/^[a-z0-9_]{3,30}$/.test(cleanUsername)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Username must be 3-30 characters and contain only letters, numbers and underscores.",
+      });
+    }
+
+    if (!isValidPassword(password)) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be between 8 and 128 characters.",
+      });
+    }
+
+    if (
+      typeof bio !== "string"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Bio must be a string.",
+      });
+    }
+
+    // ------------------------------------------
+    // VALIDATE RATINGS
+    // ------------------------------------------
+
+    const ratings = {
+      rapidRating,
+      blitzRating,
+      bulletRating,
+    };
+
+    for (const [field, value] of Object.entries(ratings)) {
+      if (
+        !Number.isInteger(value) ||
+        value < 0
+      ) {
         return res.status(400).json({
           success: false,
-          message: "Username is required.",
+          message: `${field} must be a valid non-negative integer.`,
         });
       }
+    }
 
-      if (!isValidUsername(cleanUsername)) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Username must be 3-30 characters and contain only letters, numbers and underscores.",
-        });
-      }
+    // ------------------------------------------
+    // FIND THE PLAYER CREATED BY ADMIN
+    // ------------------------------------------
 
-      if (!isValidPassword(password)) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Password must be between 8 and 128 characters.",
-        });
-      }
-
-      if (!cleanFullName) {
-        return res.status(400).json({
-          success: false,
-          message: "Full name is required.",
-        });
-      }
-
-      if (cleanFullName.length > 100) {
-        return res.status(400).json({
-          success: false,
-          message: "Full name is too long.",
-        });
-      }
-
-      if (cleanBio.length > 1000) {
-        return res.status(400).json({
-          success: false,
-          message: "Bio is too long.",
-        });
-      }
-
-      const existingPlayer = await prisma.player.findUnique({
+    const player =
+      await prisma.player.findUnique({
         where: {
           username: cleanUsername,
         },
       });
 
-      if (existingPlayer) {
-        return res.status(409).json({
-          success: false,
-          message: "That username is already registered.",
-        });
-      }
-
-      const passwordHash = await bcrypt.hash(
-        password,
-        SALT_ROUNDS
-      );
-
-      const result = await prisma.$transaction(async (tx) => {
-        const player = await tx.player.create({
-          data: {
-            username: cleanUsername,
-            fullName: cleanFullName,
-
-            passwordHash,
-
-            status: "INACTIVE",
-
-            category: cleanCategory,
-            bio: cleanBio,
-
-            rapidRating: 0,
-            blitzRating: 0,
-            bulletRating: 0,
-
-            rapidGain: 0,
-            blitzGain: 0,
-            bulletGain: 0,
-
-            totalPoints: 0,
-            totalRounds: 0,
-          },
-        });
-
-        const approvalRequest =
-          await tx.approvalRequest.create({
-            data: {
-              playerId: player.id,
-              type: "REGISTRATION",
-              status: "PENDING",
-
-              data: JSON.stringify({
-                username: cleanUsername,
-                fullName: cleanFullName,
-                bio: cleanBio,
-                category: cleanCategory,
-              }),
-            },
-          });
-
-        return {
-          player,
-          approvalRequest,
-        };
-      });
-
-      return res.status(201).json({
-        success: true,
-
-        message:
-          "Registration submitted successfully. Your account is under review.",
-
-        player: {
-          id: result.player.id,
-          username: result.player.username,
-          fullName: result.player.fullName,
-          status: result.player.status,
-        },
-
-        approvalRequest: {
-          id: result.approvalRequest.id,
-          status: result.approvalRequest.status,
-          type: result.approvalRequest.type,
-        },
-      });
-    } catch (error) {
-      console.error("POST /auth/register error:", error);
-
-      if (error.code === "P2002") {
-        return res.status(409).json({
-          success: false,
-          message: "That username is already registered.",
-        });
-      }
-
-      return res.status(500).json({
+    if (!player) {
+      return res.status(404).json({
         success: false,
-        message: "Registration failed.",
+        message:
+          "No player account was found for this username. Please contact the administrator.",
       });
     }
-  }
-);
 
+    // ------------------------------------------
+    // ONLY UNREGISTERED PLAYERS CAN REGISTER
+    // ------------------------------------------
+
+    if (player.status !== "UNREGISTERED") {
+      if (player.status === "ACTIVE") {
+        return res.status(409).json({
+          success: false,
+          message:
+            "This player account is already registered.",
+          code: "ALREADY_REGISTERED",
+        });
+      }
+
+      return res.status(409).json({
+        success: false,
+        message:
+          "This player account is not currently available for registration.",
+        code: "REGISTRATION_NOT_AVAILABLE",
+      });
+    }
+
+   
+
+    const passwordHash =
+      await bcrypt.hash(password, SALT_ROUNDS);
+
+    
+    const approval =
+      await approvalService.createApprovalRequest({
+        playerId: player.id,
+
+        type: "REGISTRATION",
+
+        data: {
+          // Existing administrator-created data
+          fullName: player.fullName,
+          username: player.username,
+          category: player.category,
+
+          // User-provided registration data
+          bio: bio.trim(),
+
+          rapidRating,
+          blitzRating,
+          bulletRating,
+
+          // IMPORTANT:
+          // Password is stored as a hash, never plain text.
+          passwordHash,
+        },
+      });
+
+    return res.status(201).json({
+      success: true,
+      message:
+        "Registration submitted successfully. Your account is awaiting administrator approval.",
+
+      approval: {
+        id: approval.id,
+        type: approval.type,
+        status: approval.status,
+        createdAt: approval.createdAt,
+      },
+    });
+
+  } catch (error) {
+    console.error(
+      "PLAYER REGISTRATION ERROR:",
+      error
+    );
+
+    if (
+      error.code ===
+      "PENDING_APPROVAL_EXISTS"
+    ) {
+      return res.status(409).json({
+        success: false,
+        message: error.message,
+        code: error.code,
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Failed to submit registration.",
+    });
+  }
+});
 
 router.post(
   "/login",
@@ -364,6 +389,48 @@ router.post(
   }
 );
 
+// ======================================================
+// PLAYER APPROVAL STATUS
+// ======================================================
+
+router.get(
+  "/approval-status",
+  playerAuth,
+  async (req, res) => {
+    try {
+      const playerId =
+        req.user.id ||
+        req.user.playerId;
+
+      if (!playerId) {
+        return res.status(401).json({
+          success: false,
+          message: "Player authentication is invalid.",
+        });
+      }
+
+      const result =
+        await approvalService.getPlayerApprovalRequests(playerId);
+      
+      return res.status(200).json({
+        success: true,
+        ...result,
+      });
+
+    } catch (error) {
+      console.error(
+        "GET /auth/approval-status error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "An error occurred while retrieving approval status.",
+      });
+    }
+  }
+);
 
 router.get(
   "/me",
@@ -471,7 +538,19 @@ router.get(
       if (!username) {
         return res.status(400).json({
           success: false,
+          eligible: false,
+          code: "USERNAME_REQUIRED",
           message: "Username is required.",
+        });
+      }
+
+      if (!isValidUsername(username)) {
+        return res.status(400).json({
+          success: false,
+          eligible: false,
+          code: "INVALID_USERNAME",
+          message:
+            "Username must be 3-30 characters and contain only letters, numbers and underscores.",
         });
       }
 
@@ -479,61 +558,81 @@ router.get(
         where: {
           username,
         },
-
         select: {
           id: true,
           username: true,
           fullName: true,
+          category: true,
           status: true,
+          passwordHash: true,
         },
       });
 
       if (!player) {
         return res.status(404).json({
           success: false,
-          message: "Registration not found.",
+          eligible: false,
+          code: "PLAYER_NOT_FOUND",
+          message:
+            "This username has not been added by an administrator.",
         });
       }
 
-      const approval =
+      const pendingApproval =
         await prisma.approvalRequest.findFirst({
           where: {
             playerId: player.id,
             type: "REGISTRATION",
-          },
-
-          orderBy: {
-            createdAt: "desc",
-          },
-
-          select: {
-            id: true,
-            status: true,
-            reason: true,
-            reviewedAt: true,
-            createdAt: true,
+            status: "PENDING",
           },
         });
+      
+      if (pendingApproval) {
+        return res.status(409).json({
+          success: false,
+          eligible: false,
+          code: "PENDING_APPROVAL_EXISTS",
+          message:
+            "Your registration is already awaiting administrator approval.",
+        });
+      }
 
-      return res.json({
+      // If password already exists, registration has already started/completed.
+      if (player.passwordHash) {
+        return res.status(409).json({
+          success: false,
+          eligible: false,
+          code: "ALREADY_REGISTERED",
+          message:
+            "This player has already registered.",
+        });
+      }
+
+      if (player.status !== "UNREGISTERED") {
+        return res.status(409).json({
+          success: false,
+          eligible: false,
+          code: "REGISTRATION_NOT_AVAILABLE",
+          message:
+            `This player is not currently eligible for registration. Current status: ${player.status}`,
+        });
+      }
+
+      return res.status(200).json({
         success: true,
+        eligible: true,
+        code: "REGISTRATION_AVAILABLE",
 
-        registration: {
+        player: {
           username: player.username,
           fullName: player.fullName,
-          accountStatus: player.status,
-
-          approval: approval
-            ? {
-                id: approval.id,
-                status: approval.status,
-                reason: approval.reason,
-                reviewedAt: approval.reviewedAt,
-                createdAt: approval.createdAt,
-              }
-            : null,
+          category: player.category,
         },
+
+        message:
+          "Username verified. You may continue with registration.",
       });
+
     } catch (error) {
       console.error(
         "GET /auth/registration-status error:",
@@ -542,11 +641,12 @@ router.get(
 
       return res.status(500).json({
         success: false,
-        message: "Failed to check registration status.",
+        eligible: false,
+        message:
+          "Failed to check registration eligibility.",
       });
     }
   }
 );
-
 
 module.exports = router;
