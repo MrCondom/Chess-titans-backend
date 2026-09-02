@@ -478,12 +478,19 @@ async function deleteTeam(teamId) {
 }
 
 
-
-async function addPlayerToTeam(teamId, playerId) {
+async function addPlayerToTeam(teamId, username) {
   teamId = validateId(teamId, "team ID");
-  playerId = validateId(playerId, "player ID");
+
+  if (typeof username !== "string" || !username.trim()) {
+    const error = new Error("Player username is required.");
+    error.code = "INVALID_USERNAME";
+    throw error;
+  }
+
+  username = username.trim().toLowerCase();
 
   const result = await prisma.$transaction(async (tx) => {
+    // Find team
     const team = await tx.team.findUnique({
       where: {
         id: teamId,
@@ -496,18 +503,24 @@ async function addPlayerToTeam(teamId, playerId) {
       throw error;
     }
 
+    // Find player by USERNAME
     const player = await tx.player.findUnique({
       where: {
-        id: playerId,
+        username,
       },
     });
 
     if (!player) {
-      const error = new Error("Player not found.");
+      const error = new Error(
+        `Player "${username}" not found.`
+      );
+
       error.code = "PLAYER_NOT_FOUND";
+
       throw error;
     }
 
+    // Player must be active
     if (player.status !== "ACTIVE") {
       const error = new Error(
         "An inactive player cannot join a team."
@@ -518,9 +531,7 @@ async function addPlayerToTeam(teamId, playerId) {
       throw error;
     }
 
-    /*
-     * Already on this team.
-     */
+    // Already on this team
     if (player.teamId === teamId) {
       const error = new Error(
         "Player is already a member of this team."
@@ -531,9 +542,7 @@ async function addPlayerToTeam(teamId, playerId) {
       throw error;
     }
 
-    /*
-     * Player cannot simultaneously belong to another team.
-     */
+    // Already belongs to another team
     if (player.teamId !== null) {
       const error = new Error(
         "Player already belongs to another team."
@@ -544,13 +553,13 @@ async function addPlayerToTeam(teamId, playerId) {
       throw error;
     }
 
-    
+    // Check previous membership record
     const existingMembership =
       await tx.teamMembership.findUnique({
         where: {
           teamId_playerId: {
             teamId,
-            playerId,
+            playerId: player.id,
           },
         },
       });
@@ -573,15 +582,16 @@ async function addPlayerToTeam(teamId, playerId) {
       membership = await tx.teamMembership.create({
         data: {
           teamId,
-          playerId,
+          playerId: player.id,
           status: "ACTIVE",
         },
       });
     }
 
+    // Update player's current team
     await tx.player.update({
       where: {
-        id: playerId,
+        id: player.id,
       },
 
       data: {
@@ -596,9 +606,10 @@ async function addPlayerToTeam(teamId, playerId) {
     };
   });
 
+  // Notification
   try {
     await notificationService.createNotification({
-      playerId,
+      playerId: result.player.id,
       type: "SYSTEM",
       title: "Team Membership",
       message: `You have joined ${result.team.name}.`,

@@ -358,15 +358,14 @@ router.post(
         });
       }
 
-      if (player.status !== "ACTIVE") {
+      if (player.status === "UNREGISTERED") {
         return res.status(403).json({
           success: false,
           message:
-            "Your account is still inactive or under review.",
-          code: "PLAYER_INACTIVE",
+            "This player account has not been registered yet.",
+          code: "PLAYER_UNREGISTERED",
         });
       }
-
       
       const token = createPlayerToken(player);
 
@@ -398,9 +397,7 @@ router.get(
   playerAuth,
   async (req, res) => {
     try {
-      const playerId =
-        req.user.id ||
-        req.user.playerId;
+      const playerId = req.playerId;
 
       if (!playerId) {
         return res.status(401).json({
@@ -410,8 +407,10 @@ router.get(
       }
 
       const result =
-        await approvalService.getPlayerApprovalRequests(playerId);
-      
+        await approvalService.getPlayerApprovalRequests(
+          playerId
+        );
+
       return res.status(200).json({
         success: true,
         ...result,

@@ -7,7 +7,6 @@ if (!JWT_SECRET) {
   throw new Error("JWT_SECRET is not configured");
 }
 
-
 async function playerAuth(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
@@ -22,7 +21,10 @@ async function playerAuth(req, res, next) {
 
     const parts = authHeader.trim().split(/\s+/);
 
-    if (parts.length !== 2 || parts[0].toLowerCase() !== "bearer") {
+    if (
+      parts.length !== 2 ||
+      parts[0].toLowerCase() !== "bearer"
+    ) {
       return res.status(401).json({
         success: false,
         message: "Invalid authorization format",
@@ -63,7 +65,6 @@ async function playerAuth(req, res, next) {
       });
     }
 
-    
     if (decoded.type !== "player") {
       return res.status(401).json({
         success: false,
@@ -84,6 +85,7 @@ async function playerAuth(req, res, next) {
       where: {
         id: playerId,
       },
+
       select: {
         id: true,
         fullName: true,
@@ -91,19 +93,24 @@ async function playerAuth(req, res, next) {
         status: true,
         category: true,
         bio: true,
+
         rapidRating: true,
         blitzRating: true,
         bulletRating: true,
+
         rapidGain: true,
         blitzGain: true,
         bulletGain: true,
+
         totalPoints: true,
         totalRounds: true,
         totalWins: true,
         totalDraws: true,
         totalLosses: true,
         tournamentWins: true,
+
         teamId: true,
+
         createdAt: true,
         updatedAt: true,
       },
@@ -117,24 +124,20 @@ async function playerAuth(req, res, next) {
       });
     }
 
-    // Account has been disabled
-    if (player.status !== "ACTIVE") {
-      return res.status(403).json({
-        success: false,
-        message: "Player account is inactive",
-      });
-    }
-
-    // Attach authenticated player to request
+    
     req.player = player;
     req.playerId = player.id;
 
-    // Keep decoded token available if a route needs it.
+    // Keep decoded token available if needed
     req.playerToken = decoded;
 
     next();
+
   } catch (error) {
-    console.error("Player authentication middleware error:", error);
+    console.error(
+      "Player authentication middleware error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,

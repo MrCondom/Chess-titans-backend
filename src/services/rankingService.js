@@ -22,16 +22,24 @@ async function calculateRankings({
     throw new Error("Category is required.");
   }
 
+  const cleanCategory = category.trim().toLowerCase();
+
   const players = await prisma.player.findMany({
     where: {
-      category,
-      status: "ACTIVE",
+      category: cleanCategory,
+      status: {
+        in: ["ACTIVE", "INACTIVE", "SUSPENDED"],
+      },
     },
 
     select: {
       id: true,
       fullName: true,
       username: true,
+
+      // ✅ ADD THESE
+      status: true,
+      bio: true,
 
       rapidRating: true,
       blitzRating: true,
@@ -42,19 +50,13 @@ async function calculateRankings({
   const rankingData = [];
 
   for (const player of players) {
-
-    
     let rating = 0;
 
     if (mode === "RAPID") {
       rating = player.rapidRating;
-    }
-
-    else if (mode === "BLITZ") {
+    } else if (mode === "BLITZ") {
       rating = player.blitzRating;
-    }
-
-    else if (mode === "BULLET") {
+    } else if (mode === "BULLET") {
       rating = player.bulletRating;
     }
 
@@ -65,7 +67,6 @@ async function calculateRankings({
   }
 
   rankingData.sort((a, b) => {
-
     if (b.rating !== a.rating) {
       return b.rating - a.rating;
     }
@@ -75,7 +76,6 @@ async function calculateRankings({
     );
   });
 
- 
   let previous = null;
   let currentRank = 0;
 
@@ -98,7 +98,8 @@ async function calculateRankings({
   await prisma.$transaction(async (tx) => {
     await tx.playerRanking.deleteMany({
       where: {
-        category,
+        // ✅ USE cleanCategory
+        category: cleanCategory,
         mode,
         tournamentId: null,
         month: null,
@@ -114,7 +115,8 @@ async function calculateRankings({
       data: rankingData.map((item) => ({
         playerId: item.player.id,
 
-        category,
+        // ✅ USE cleanCategory
+        category: cleanCategory,
         mode,
 
         rank: item.rank,
@@ -127,22 +129,25 @@ async function calculateRankings({
     });
   });
 
-
+  // ✅ IMPORTANT: RETURN STATUS + BIO
   return rankingData.map((item) => ({
     playerId: item.player.id,
 
     fullName: item.player.fullName,
     username: item.player.username,
 
-    category,
+    category: cleanCategory,
     mode,
 
     rank: item.rank,
 
     rating: item.rating,
+
+    // ✅ ADD THESE
+    status: item.player.status,
+    bio: item.player.bio,
   }));
 }
-
 
 async function getRankings({
   category,
@@ -171,10 +176,13 @@ async function getRankings({
           fullName: true,
           username: true,
           category: true,
-
+      
           rapidRating: true,
           blitzRating: true,
           bulletRating: true,
+      
+          status: true,
+          bio: true,
         },
       },
     },
@@ -239,7 +247,9 @@ async function getPlayerRanking({
 async function getOverallPlayerRankings() {
   const players = await prisma.player.findMany({
     where: {
-      status: "ACTIVE",
+      status: {
+        in: ["ACTIVE", "INACTIVE", "SUSPENDED"],
+      },
     },
 
     select: {
@@ -248,6 +258,8 @@ async function getOverallPlayerRankings() {
       username: true,
       category: true,
       totalPoints: true,
+      status: true,
+      bio: true,
     },
 
     orderBy: {
@@ -262,15 +274,17 @@ async function getOverallPlayerRankings() {
     if (player.totalPoints !== previousPoints) {
       currentRank = index + 1;
     }
-
+  
     previousPoints = player.totalPoints;
-
+  
     return {
       playerId: player.id,
       fullName: player.fullName,
       username: player.username,
       category: player.category,
       totalPoints: player.totalPoints,
+      status: player.status,
+      bio: player.bio,
       rank: currentRank,
     };
   });

@@ -33,6 +33,41 @@ router.get("/", async (req, res) => {
   }
 });
 
+router.get(
+  "/player/me",
+  playerAuth,
+  async (req, res) => {
+    try {
+      const team =
+        await teamService.getPlayerTeam(
+          req.user.id
+        );
+
+      return res.json({
+        success: true,
+        team,
+      });
+    } catch (error) {
+      console.error(
+        "GET PLAYER TEAM ERROR:",
+        error
+      );
+
+      const status =
+        error.code === "PLAYER_NOT_FOUND"
+          ? 404
+          : 400;
+
+      return res.status(status).json({
+        success: false,
+        message: error.message,
+        code:
+          error.code ||
+          "GET_PLAYER_TEAM_FAILED",
+      });
+    }
+  }
+);
 
 router.get("/:teamId", async (req, res) => {
   try {
@@ -181,7 +216,7 @@ router.post(
       const team =
         await teamService.addPlayerToTeam(
           req.params.teamId,
-          req.body.playerId
+          req.body.username
         );
 
       return res.status(201).json({
@@ -343,42 +378,6 @@ router.patch(
   }
 );
 
-
-router.get(
-  "/player/me",
-  playerAuth,
-  async (req, res) => {
-    try {
-      const team =
-        await teamService.getPlayerTeam(
-          req.user.id
-        );
-
-      return res.json({
-        success: true,
-        team,
-      });
-    } catch (error) {
-      console.error(
-        "GET PLAYER TEAM ERROR:",
-        error
-      );
-
-      const status =
-        error.code === "PLAYER_NOT_FOUND"
-          ? 404
-          : 400;
-
-      return res.status(status).json({
-        success: false,
-        message: error.message,
-        code:
-          error.code ||
-          "GET_PLAYER_TEAM_FAILED",
-      });
-    }
-  }
-);
 
 
 module.exports = router;

@@ -17,7 +17,7 @@ router.get("/", async (req, res) => {
     } = req.query;
 
     const rankings =
-      await rankingService.getRankings({
+      await rankingService.calculateRankings({
         category,
         mode,
       });

@@ -8,6 +8,7 @@ const playerAuth = require("../middleware/playerAuth");
 const approvalService = require("../services/approvalService");
 
 
+
 const playerSelect = {
   id: true,
   fullName: true,
@@ -54,6 +55,14 @@ function getAuthenticatedPlayerId(req) {
   return playerId;
 }
 
+function isRegisteredPlayer(status) {
+  return status !== "UNREGISTERED";
+}
+
+function isActivePlayer(status) {
+  return status === "ACTIVE";
+}
+
 
 router.get("/me", playerAuth, async (req, res) => {
   try {
@@ -66,11 +75,11 @@ router.get("/me", playerAuth, async (req, res) => {
       });
     }
 
+    // ALWAYS fetch the current player from the database.
     const player = await prisma.player.findUnique({
       where: {
         id: playerId,
       },
-
       select: playerSelect,
     });
 
@@ -81,17 +90,25 @@ router.get("/me", playerAuth, async (req, res) => {
       });
     }
 
-    if (player.status !== "ACTIVE") {
+    if (player.status === "UNREGISTERED") {
       return res.status(403).json({
         success: false,
-        message: "Your player account is inactive.",
+        message: "This player account is not registered.",
       });
     }
+
+    console.log(
+      "PLAYER /ME:",
+      player.username,
+      "STATUS:",
+      player.status
+    );
 
     return res.status(200).json({
       success: true,
       player,
     });
+
   } catch (error) {
     console.error("GET CURRENT PLAYER ERROR:", error);
 
@@ -132,13 +149,14 @@ router.post("/me/bio", playerAuth, async (req, res) => {
       });
     }
 
-    if (player.status !== "ACTIVE") {
+    if (!isActivePlayer(player.status)) {
       return res.status(403).json({
         success: false,
-        message: "Your player account is inactive.",
+        message:
+          "Your account must be active to submit profile changes.",
       });
     }
-
+    
     const { bio } = req.body;
 
     if (typeof bio !== "string") {
@@ -234,10 +252,11 @@ router.post("/me/username", playerAuth, async (req, res) => {
       });
     }
 
-    if (player.status !== "ACTIVE") {
+    if (!isActivePlayer(player.status)) {
       return res.status(403).json({
         success: false,
-        message: "Your player account is inactive.",
+        message:
+          "Your account must be active to change your username.",
       });
     }
 
@@ -370,14 +389,15 @@ router.post("/me/profile", playerAuth, async (req, res) => {
       });
     }
 
-    if (player.status !== "ACTIVE") {
+    if (!isActivePlayer(player.status)) {
       return res.status(403).json({
         success: false,
-        message: "Your player account is inactive.",
+        message:
+          "Your account must be active to change your profile.",
       });
     }
 
-    const { fullName, category } = req.body;
+    const { fullName } = req.body;
 
     const data = {};
 
@@ -402,26 +422,6 @@ router.post("/me/profile", playerAuth, async (req, res) => {
       }
 
       data.fullName = cleanFullName;
-    }
-
-    if (category !== undefined) {
-      if (typeof category !== "string") {
-        return res.status(400).json({
-          success: false,
-          message: "Category must be a string.",
-        });
-      }
-
-      const cleanCategory = category.trim();
-
-      if (cleanCategory.length > 100) {
-        return res.status(400).json({
-          success: false,
-          message: "Category cannot exceed 100 characters.",
-        });
-      }
-
-      data.category = cleanCategory;
     }
 
     if (Object.keys(data).length === 0) {
@@ -513,13 +513,14 @@ router.post("/me/password", playerAuth, async (req, res) => {
       });
     }
 
-    if (player.status !== "ACTIVE") {
+    if (player.status === "UNREGISTERED") {
       return res.status(403).json({
         success: false,
-        message: "Your player account is inactive.",
+        message:
+          "Your account must be registered before you can change your password.",
       });
     }
-
+    
     const {
       currentPassword,
       newPassword,
@@ -752,13 +753,14 @@ router.get("/:id", async (req, res) => {
     const player = await prisma.player.findFirst({
       where: {
         id: playerId,
-        status: "ACTIVE",
       },
 
       select: {
         id: true,
         fullName: true,
         username: true,
+
+        status: true,
 
         category: true,
         bio: true,

@@ -5,196 +5,304 @@ const router = express.Router();
 const pairingService =
   require("../services/pairingService");
 
-const { adminAuth } =
-  require("../middleware/adminAuth");
 
+// ======================================================
+// PAIRING OPTIONS
+// ======================================================
 
-router.post(
-  "/generate",
-  adminAuth,
-  async (req, res) => {
+// GET /pairings/categories?tournamentId=1
+router.get(
+  "/categories",
+  async (req, res, next) => {
     try {
-      const {
-        tournamentId,
-        round,
-        availableAt,
-      } = req.body;
-
-      const result =
-        await pairingService.generatePairings({
-          tournamentId,
-          round,
-          availableAt,
-        });
-
-      res.json({
-        success: true,
-        message:
-          "Pairings generated successfully.",
-        result,
-      });
-
-    } catch (error) {
-      console.error(
-        "GENERATE PAIRINGS ERROR:",
-        error
-      );
-
-      res.status(400).json({
-        success: false,
-        message: error.message,
-      });
-    }
-  }
-);
-
-router.post(
-  "/team/generate",
-  adminAuth,
-  async (req, res) => {
-    try {
-      const {
-        tournamentId,
-        round,
-        availableAt,
-      } = req.body;
-
-      const result =
-        await pairingService.generateTeamPairings({
-          tournamentId,
-          round,
-          availableAt,
-        });
-
-      res.json({
-        success: true,
-        message:
-          "Team pairings generated successfully.",
-        result,
-      });
-
-    } catch (error) {
-      console.error(
-        "GENERATE TEAM PAIRINGS ERROR:",
-        error
-      );
-
-      res.status(400).json({
-        success: false,
-        message: error.message,
-      });
-    }
-  }
-);
-
-router.delete(
-  "/delete",
-  adminAuth,
-  async (req, res) => {
-    try {
-      const {
-        tournamentId,
-        round,
-      } = req.body;
-
-      const result =
-        await pairingService.deletePairings({
-          tournamentId,
-          round,
-        });
-
-      res.json({
-        success: true,
-        message:
-          "Pairings deleted successfully.",
-        result,
-      });
-
-    } catch (error) {
-      console.error(
-        "DELETE PAIRINGS ERROR:",
-        error
-      );
-
-      res.status(400).json({
-        success: false,
-        message: error.message,
-      });
-    }
-  }
-);
-
-router.post(
-  "/team/table/generate",
-  adminAuth,
-  async (req, res) => {
-    try {
-      const {
-        teamPairingId,
-      } = req.body;
-
       const result =
         await pairingService
-          .generateTeamTablePairings({
-            teamPairingId,
+          .getAvailableCategories({
+            tournamentId:
+              req.query.tournamentId,
+          });
+
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+
+// GET /pairings/teams?tournamentId=1
+router.get(
+  "/teams",
+  async (req, res, next) => {
+    try {
+      const result =
+        await pairingService
+          .getAvailableTeams({
+            tournamentId:
+              req.query.tournamentId,
+          });
+
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+
+// ======================================================
+// INDIVIDUAL
+// ======================================================
+
+// POST /pairings/generate
+router.post(
+  "/generate",
+  async (req, res, next) => {
+    try {
+      const result =
+        await pairingService
+          .generatePairings({
+            tournamentId:
+              req.body.tournamentId,
+
+            category:
+              req.body.category,
+
+            rounds:
+              req.body.rounds,
+
+            hoursPerRound:
+              req.body.hoursPerRound,
+
+            availableAt:
+              req.body.availableAt,
+          });
+
+      res.status(201).json({
+        success: true,
+        message:
+          "Individual pairings generated successfully.",
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+
+// GET /pairings?tournamentId=1&category=HEAVYWEIGHT&round=1
+router.get(
+  "/",
+  async (req, res, next) => {
+    try {
+      const result =
+        await pairingService
+          .getPairings({
+            tournamentId:
+              req.query.tournamentId,
+
+            category:
+              req.query.category,
+
+            round:
+              req.query.round,
+          });
+
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+
+// DELETE /pairings
+router.delete(
+  "/",
+  async (req, res, next) => {
+    try {
+      const result =
+        await pairingService
+          .deletePairings({
+            tournamentId:
+              req.body.tournamentId,
+
+            round:
+              req.body.round,
+
+            category:
+              req.body.category,
           });
 
       res.json({
         success: true,
         message:
-          "Team table pairings generated successfully.",
-        result,
+          "Pairings deleted successfully.",
+        data: result,
       });
-
     } catch (error) {
-      console.error(
-        "GENERATE TEAM TABLE PAIRINGS ERROR:",
-        error
-      );
-
-      res.status(400).json({
-        success: false,
-        message: error.message,
-      });
+      next(error);
     }
   }
 );
 
-router.delete(
-  "/team/delete",
-  adminAuth,
-  async (req, res) => {
-    try {
-      const {
-        tournamentId,
-        round,
-      } = req.body;
 
+// ======================================================
+// TEAM VS TEAM
+// ======================================================
+
+// POST /pairings/team/generate
+router.post(
+  "/team/generate",
+  async (req, res, next) => {
+    try {
       const result =
-        await pairingService.deleteTeamPairings({
-          tournamentId,
-          round,
-        });
+        await pairingService
+          .generateTeamPairings({
+            tournamentId:
+              req.body.tournamentId,
+
+            rounds:
+              req.body.rounds,
+
+            hoursPerRound:
+              req.body.hoursPerRound,
+
+            availableAt:
+              req.body.availableAt,
+          });
+
+      res.status(201).json({
+        success: true,
+        message:
+          "Team pairings generated successfully.",
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+
+// GET /pairings/team?tournamentId=1&round=1
+router.get(
+  "/team",
+  async (req, res, next) => {
+    try {
+      const result =
+        await pairingService
+          .getTeamPairings({
+            tournamentId:
+              req.query.tournamentId,
+
+            round:
+              req.query.round,
+          });
+
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+
+// ======================================================
+// TEAM BOARD
+// ======================================================
+
+// POST /pairings/team-table/generate
+router.post(
+  "/team-table/generate",
+  async (req, res, next) => {
+    try {
+      const result =
+        await pairingService
+          .generateTeamTablePairings({
+            teamPairingId:
+              req.body.teamPairingId,
+          });
+
+      res.status(201).json({
+        success: true,
+        message:
+          "Team board pairings generated successfully.",
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+
+// GET /pairings/team-table/:teamPairingId
+router.get(
+  "/team-table/:teamPairingId",
+  async (req, res, next) => {
+    try {
+      const result =
+        await pairingService
+          .getTeamTablePairings({
+            teamPairingId:
+              req.params.teamPairingId,
+          });
+
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+
+// ======================================================
+// DELETE TEAM PAIRINGS
+// ======================================================
+
+// DELETE /pairings/team
+router.delete(
+  "/team",
+  async (req, res, next) => {
+    try {
+      const result =
+        await pairingService
+          .deleteTeamPairings({
+            tournamentId:
+              req.body.tournamentId,
+
+            round:
+              req.body.round,
+          });
 
       res.json({
         success: true,
         message:
           "Team pairings deleted successfully.",
-        result,
+        data: result,
       });
-
     } catch (error) {
-      console.error(
-        "DELETE TEAM PAIRINGS ERROR:",
-        error
-      );
-
-      res.status(400).json({
-        success: false,
-        message: error.message,
-      });
+      next(error);
     }
   }
 );
+
 
 module.exports = router;

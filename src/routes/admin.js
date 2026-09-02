@@ -302,62 +302,193 @@ router.get("/players/unregistered", adminAuth, async (req, res) => {
   }
 });
 
-router.delete("/players/:id", adminAuth, async (req, res) => {
-  try {
-    const playerId = Number(req.params.id);
 
-    if (!Number.isInteger(playerId) || playerId <= 0) {
-      return res.status(400).json({
+router.delete(
+  "/players/:username",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const username = req.params.username
+        .trim()
+        .toLowerCase();
+
+      if (!username) {
+        return res.status(400).json({
+          success: false,
+          message: "Player username is required.",
+        });
+      }
+
+      const player = await prisma.player.findUnique({
+        where: {
+          username,
+        },
+
+        select: {
+          id: true,
+          username: true,
+          fullName: true,
+          status: true,
+        },
+      });
+
+      if (!player) {
+        return res.status(404).json({
+          success: false,
+          message: "Player not found.",
+        });
+      }
+
+      await prisma.player.delete({
+        where: {
+          id: player.id,
+        },
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Player deleted permanently.",
+        player: {
+          id: player.id,
+          username: player.username,
+          fullName: player.fullName,
+          status: player.status,
+        },
+      });
+
+    } catch (error) {
+      console.error(
+        "DELETE PLAYER ERROR:",
+        error
+      );
+
+      if (error.code === "P2003") {
+        return res.status(409).json({
+          success: false,
+          message:
+            "This player cannot be deleted because other records depend on this player.",
+          code: "PLAYER_HAS_DEPENDENCIES",
+        });
+      }
+
+      return res.status(500).json({
         success: false,
-        message: "Invalid player ID.",
+        message: "Failed to delete player.",
       });
     }
-
-    const player = await prisma.player.findUnique({
-      where: {
-        id: playerId,
-      },
-    });
-
-    if (!player) {
-      return res.status(404).json({
-        success: false,
-        message: "Player not found.",
-      });
-    }
-
-    await prisma.player.delete({
-      where: {
-        id: playerId,
-      },
-    });
-
-    return res.status(200).json({
-      success: true,
-      message: "Player deleted successfully.",
-      player: {
-        id: player.id,
-        username: player.username,
-        fullName: player.fullName,
-      },
-    });
-  } catch (error) {
-    console.error("DELETE PLAYER ERROR:", error);
-
-    if (error.code === "P2003") {
-      return res.status(409).json({
-        success: false,
-        message:
-          "This player cannot be deleted because other records depend on this player.",
-      });
-    }
-
-    return res.status(500).json({
-      success: false,
-      message: "Failed to delete player.",
-    });
   }
-});
+);
+
+router.patch(
+  "/players/:username/status",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const username = req.params.username
+        .trim()
+        .toLowerCase();
+
+      if (!username) {
+        return res.status(400).json({
+          success: false,
+          message: "Player username is required.",
+        });
+      }
+
+      const { status } = req.body;
+
+      if (typeof status !== "string") {
+        return res.status(400).json({
+          success: false,
+          message: "Player status is required.",
+        });
+      }
+
+      const cleanStatus =
+        status.trim().toUpperCase();
+
+      const allowedStatuses = [
+        "ACTIVE",
+        "INACTIVE",
+        "SUSPENDED",
+        "UNREGISTERED",
+      ];
+
+      if (!allowedStatuses.includes(cleanStatus)) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid player status. Allowed statuses: ACTIVE, INACTIVE, SUSPENDED, UNREGISTERED.",
+        });
+      }
+
+      const player = await prisma.player.findUnique({
+        where: {
+          username,
+        },
+
+        select: {
+          id: true,
+          username: true,
+          fullName: true,
+          status: true,
+        },
+      });
+
+      if (!player) {
+        return res.status(404).json({
+          success: false,
+          message: "Player not found.",
+        });
+      }
+
+      if (player.status === cleanStatus) {
+        return res.status(409).json({
+          success: false,
+          message:
+            `Player is already ${cleanStatus.toLowerCase()}.`,
+        });
+      }
+
+      const updatedPlayer =
+        await prisma.player.update({
+          where: {
+            id: player.id,
+          },
+
+          data: {
+            status: cleanStatus,
+          },
+
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+            status: true,
+            updatedAt: true,
+          },
+        });
+
+      return res.status(200).json({
+        success: true,
+        message:
+          `Player status changed to ${cleanStatus.toLowerCase()} successfully.`,
+        player: updatedPlayer,
+      });
+
+    } catch (error) {
+      console.error(
+        "CHANGE PLAYER STATUS ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message: "Failed to change player status.",
+      });
+    }
+  }
+);
 
 router.get("/approvals", adminAuth, async (req, res) => {
   try {
@@ -954,6 +1085,156 @@ router.post(
         success: false,
         message:
           "Failed to reset player registration.",
+      });
+    }
+  }
+);
+
+
+router.patch(
+  "/players/:id/category",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const playerId = Number(req.params.id);
+
+      // Validate player ID
+      if (!Number.isInteger(playerId) || playerId <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid player ID.",
+        });
+      }
+
+      const { category } = req.body;
+
+      // Validate category
+      if (
+        typeof category !== "string" ||
+        !category.trim()
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Player category is required.",
+        });
+      }
+
+      const cleanCategory = category.trim().toLowerCase();
+
+      // Prevent excessively long categories
+      if (cleanCategory.length > 50) {
+        return res.status(400).json({
+          success: false,
+          message: "Player category is too long.",
+        });
+      }
+
+      // Find player
+      const player = await prisma.player.findUnique({
+        where: {
+          id: playerId,
+        },
+
+        select: {
+          id: true,
+          username: true,
+          fullName: true,
+          category: true,
+          status: true,
+        },
+      });
+
+      if (!player) {
+        return res.status(404).json({
+          success: false,
+          message: "Player not found.",
+        });
+      }
+
+      // Prevent unnecessary update
+      if (player.category === cleanCategory) {
+        return res.status(409).json({
+          success: false,
+          message: `Player is already in the ${cleanCategory} category.`,
+        });
+      }
+
+      // Update category
+      const updatedPlayer = await prisma.player.update({
+        where: {
+          id: playerId,
+        },
+
+        data: {
+          category: cleanCategory,
+        },
+
+        select: {
+          id: true,
+          username: true,
+          fullName: true,
+          category: true,
+          status: true,
+          updatedAt: true,
+        },
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Player category changed successfully.",
+        player: updatedPlayer,
+      });
+
+    } catch (error) {
+      console.error(
+        "CHANGE PLAYER CATEGORY ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message: "Failed to change player category.",
+      });
+    }
+  }
+);
+
+router.get(
+  "/players",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const players =
+        await prisma.player.findMany({
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+            category: true,
+            status: true,
+          },
+
+          orderBy: {
+            fullName: "asc",
+          },
+        });
+
+      return res.status(200).json({
+        success: true,
+        count: players.length,
+        players,
+      });
+
+    } catch (error) {
+      console.error(
+        "GET ADMIN PLAYERS ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to retrieve players.",
       });
     }
   }
