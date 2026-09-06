@@ -63,6 +63,12 @@ enum TournamentFormat {
   TEAM_BOARD
 }
 
+enum TeamPairingMode {
+  RAPID
+  BLITZ
+  BULLET
+}
+
 enum TournamentStatus {
   DRAFT
   ACTIVE
@@ -232,10 +238,9 @@ model TeamPairing {
   teamAId Int
   teamBId Int
 
-  tournamentId Int
-  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-
   games TeamGame[]
+
+  mode TeamPairingMode
 
   teamA Team @relation("TeamA", fields: [teamAId], references: [id], onDelete: Cascade)
 
@@ -245,10 +250,11 @@ model TeamPairing {
 
   createdAt DateTime @default(now())
 
-  @@unique([tournamentId, round, teamAId, teamBId])
+  @@unique([round, teamAId, teamBId, mode])
   @@index([round])
   @@index([teamAId])
   @@index([teamBId])
+  @@index([mode])
   @@index([availableAt])
 }
 
@@ -451,7 +457,6 @@ model Tournament {
 
   championUsername String?
 
-  teamPairings TeamPairing[]
   pairings     Pairing[]
   players      TournamentPlayer[]
 

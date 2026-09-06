@@ -32,7 +32,7 @@ app.use("/admin", adminRoutes)
 app.use("/auth", authRoutes)
 app.use("/results", resultRoutes)
 app.use("/rankings", rankingsRoutes)
-app.use("/tournaments", tournamentRoutes)
+app.use("/tournaments/special", tournamentRoutes);
 
 
 

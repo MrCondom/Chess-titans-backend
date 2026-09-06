@@ -106,10 +106,22 @@ function publicPlayer(player) {
 
     totalPoints: player.totalPoints,
     totalRounds: player.totalRounds,
+    totalWins: player.totalWins,
+    totalDraws: player.totalDraws,
+    totalLosses: player.totalLosses,
 
     tournamentWins: player.tournamentWins,
 
     teamId: player.teamId,
+
+    team: player.team
+      ? {
+          id: player.team.id,
+          name: player.team.name,
+        }
+      : null,
+
+    isCaptain: !!player.captainOfTeam,
 
     createdAt: player.createdAt,
     updatedAt: player.updatedAt,

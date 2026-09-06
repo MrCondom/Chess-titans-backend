@@ -7,20 +7,15 @@ const prisma = require("../lib/prisma");
 const MAX_ROUNDS = 200;
 const MAX_HOURS_PER_ROUND = 720;
 
-const TOURNAMENT_TYPES = {
-  INDIVIDUAL: "INDIVIDUAL",
-  TEAM: "TEAM",
-  SPECIAL: "SPECIAL",
-};
-
 const FORMATS = {
   ROUND_ROBIN: "ROUND_ROBIN",
   SWISS: "SWISS",
 };
 
-const TEAM_MODES = {
-  TEAM_VS_TEAM: "TEAM_VS_TEAM",
-  TEAM_BOARD: "TEAM_BOARD",
+const MODES = {
+  RAPID: "RAPID",
+  BLITZ: "BLITZ",
+  BULLET: "BULLET",
 };
 
 
@@ -30,9 +25,7 @@ const TEAM_MODES = {
 
 function createError(message, code = "PAIRING_ERROR") {
   const error = new Error(message);
-
   error.code = code;
-
   return error;
 }
 
@@ -40,20 +33,6 @@ function createError(message, code = "PAIRING_ERROR") {
 // ======================================================
 // VALIDATION
 // ======================================================
-
-function validateId(value, name = "ID") {
-  const id = Number(value);
-
-  if (!Number.isInteger(id) || id <= 0) {
-    throw createError(
-      `Invalid ${name}.`,
-      "INVALID_ID"
-    );
-  }
-
-  return id;
-}
-
 
 function validateRound(value) {
   const round = Number(value);
@@ -87,10 +66,7 @@ function validateOptionalRounds(value) {
 
   const rounds = Number(value);
 
-  if (
-    !Number.isInteger(rounds) ||
-    rounds <= 0
-  ) {
+  if (!Number.isInteger(rounds) || rounds <= 0) {
     throw createError(
       "Number of rounds must be a positive integer.",
       "INVALID_TOTAL_ROUNDS"
@@ -146,7 +122,9 @@ function validateCategory(category) {
     );
   }
 
-  return String(category).trim();
+  return String(category)
+    .trim()
+    .toUpperCase();
 }
 
 
@@ -159,7 +137,9 @@ function validateOptionalCategory(category) {
     return null;
   }
 
-  return String(category).trim();
+  return String(category)
+    .trim()
+    .toUpperCase();
 }
 
 
@@ -186,15 +166,53 @@ function validateDate(value, name = "date") {
 
 
 // ======================================================
+// MODE VALIDATION
+// ======================================================
+
+function validateMode(mode) {
+  if (
+    mode === undefined ||
+    mode === null ||
+    String(mode).trim() === ""
+  ) {
+    return MODES.RAPID;
+  }
+
+  const cleanMode =
+    String(mode)
+      .trim()
+      .toUpperCase();
+
+  if (
+    !Object.values(MODES).includes(
+      cleanMode
+    )
+  ) {
+    throw createError(
+      "Invalid chess mode. Allowed modes are RAPID, BLITZ, or BULLET.",
+      "INVALID_MODE"
+    );
+  }
+
+  return cleanMode;
+}
+
+
+// ======================================================
 // SHUFFLE
 // ======================================================
 
 function shuffle(array) {
   const result = [...array];
 
-  for (let i = result.length - 1; i > 0; i--) {
-    const j =
-      Math.floor(Math.random() * (i + 1));
+  for (
+    let i = result.length - 1;
+    i > 0;
+    i--
+  ) {
+    const j = Math.floor(
+      Math.random() * (i + 1)
+    );
 
     [
       result[i],
@@ -210,136 +228,42 @@ function shuffle(array) {
 
 
 // ======================================================
-// TOURNAMENT
+// AVAILABLE CATEGORIES
 // ======================================================
 
-async function getTournament(tournamentId) {
-  tournamentId = validateId(
-    tournamentId,
-    "tournament ID"
+async function getAvailableCategories() {
+  console.log(
+    "🔥 GET AVAILABLE CATEGORIES CALLED"
   );
 
-  const tournament =
-    await prisma.tournament.findUnique({
+  const players =
+    await prisma.player.findMany({
       where: {
-        id: tournamentId,
-      },
-    });
-
-  if (!tournament) {
-    throw createError(
-      "Tournament not found.",
-      "TOURNAMENT_NOT_FOUND"
-    );
-  }
-
-  return tournament;
-}
-
-
-function ensureTournamentActive(tournament) {
-  if (
-    tournament.status &&
-    tournament.status !== "ACTIVE"
-  ) {
-    throw createError(
-      "Tournament must be ACTIVE before pairings can be generated.",
-      "TOURNAMENT_NOT_ACTIVE"
-    );
-  }
-}
-
-
-// ======================================================
-// TOURNAMENT PLAYERS
-// ======================================================
-
-async function getTournamentPlayers(tournamentId) {
-  tournamentId = validateId(
-    tournamentId,
-    "tournament ID"
-  );
-
-  const tournamentPlayers =
-    await prisma.tournamentPlayer.findMany({
-      where: {
-        tournamentId,
+        status: "ACTIVE",
       },
 
       select: {
-        player: {
-          select: {
-            id: true,
-            fullName: true,
-            username: true,
-            category: true,
-            status: true,
-          },
-        },
+        id: true,
+        fullName: true,
+        username: true,
+        category: true,
+        status: true,
       },
     });
-
-  return tournamentPlayers
-    .map((entry) => entry.player)
-    .filter(Boolean);
-}
-
-
-// ======================================================
-// GET AVAILABLE CATEGORIES
-//
-// GET /pairings/categories?tournamentId=1
-//
-// Response:
-//
-// {
-//   tournamentId: 1,
-//   categories: [
-//     {
-//       name: "HEAVYWEIGHT",
-//       playerCount: 8,
-//       canGenerate: true
-//     }
-//   ]
-// }
-// ======================================================
-
-async function getAvailableCategories({
-  tournamentId,
-}) {
-  tournamentId = validateId(
-    tournamentId,
-    "tournament ID"
-  );
-
-  const tournament =
-    await getTournament(
-      tournamentId
-    );
-
-  const players =
-    await getTournamentPlayers(
-      tournamentId
-    );
 
   const categoryMap = new Map();
 
   for (const player of players) {
-    if (!player) continue;
-
-    if (player.status !== "ACTIVE") {
-      continue;
-    }
-
-    if (
-      !player.category ||
-      String(player.category).trim() === ""
-    ) {
+    if (!player.category) {
       continue;
     }
 
     const category =
       String(player.category).trim();
+
+    if (!category) {
+      continue;
+    }
 
     categoryMap.set(
       category,
@@ -357,18 +281,90 @@ async function getAvailableCategories({
             playerCount >= 2,
         })
       )
-      .sort((a, b) =>
-        a.name.localeCompare(b.name)
+      .sort(
+        (a, b) =>
+          a.name.localeCompare(b.name)
       );
 
+  console.log(
+    "🔥 AVAILABLE CATEGORIES:",
+    categories
+  );
+
   return {
-    tournamentId,
-
-    tournamentType:
-      tournament.type,
-
     categories,
   };
+}
+
+
+// ======================================================
+// GET ACTIVE PLAYERS FOR A CATEGORY
+// ======================================================
+
+async function getPairingPlayers(category) {
+  const cleanCategory =
+    validateCategory(category);
+
+  console.log(
+    `🔥 GET PAIRING PLAYERS: ${cleanCategory}`
+  );
+
+  const players =
+    await prisma.player.findMany({
+      where: {
+        status: "ACTIVE",
+      },
+
+      select: {
+        id: true,
+        fullName: true,
+        username: true,
+        category: true,
+        status: true,
+      },
+    });
+
+  const matchingPlayers =
+    players.filter(
+      (player) => {
+        if (!player.category) {
+          return false;
+        }
+
+        return (
+          String(player.category)
+            .trim()
+            .toUpperCase() ===
+          cleanCategory
+        );
+      }
+    );
+
+  console.log(
+    `🔥 PLAYERS IN ${cleanCategory}:`,
+    matchingPlayers.map(
+      (player) => ({
+        id: player.id,
+        fullName:
+          player.fullName,
+        username:
+          player.username,
+        category:
+          player.category,
+      })
+    )
+  );
+
+  if (
+    matchingPlayers.length < 2
+  ) {
+    throw createError(
+      `At least 2 active players are required in the ${cleanCategory} category.`,
+      "NOT_ENOUGH_PLAYERS"
+    );
+  }
+
+  return matchingPlayers;
 }
 
 
@@ -379,43 +375,24 @@ async function getAvailableCategories({
 function calculateMaximumRounds({
   format,
   participantCount,
-  tournamentTotalRounds,
 }) {
-  if (format === FORMATS.ROUND_ROBIN) {
+  if (
+    format === FORMATS.ROUND_ROBIN
+  ) {
     return participantCount % 2 === 0
       ? participantCount - 1
       : participantCount;
   }
 
-  const tournamentRounds =
-    Number(tournamentTotalRounds);
-
   if (
-    Number.isInteger(tournamentRounds) &&
-    tournamentRounds > 0
+    format === FORMATS.SWISS
   ) {
-    return Math.min(
-      tournamentRounds,
-      MAX_ROUNDS
-    );
+    return MAX_ROUNDS;
   }
 
   return 1;
 }
 
-
-// ======================================================
-// RESOLVE REQUESTED ROUNDS
-//
-// Important:
-// rounds is optional.
-//
-// If omitted:
-// - generate ONLY one round.
-//
-// If supplied:
-// - generate that many rounds.
-// ======================================================
 
 function resolveRounds({
   requestedRounds,
@@ -430,9 +407,11 @@ function resolveRounds({
     return 1;
   }
 
-  if (rounds > maximumRounds) {
+  if (
+    rounds > maximumRounds
+  ) {
     throw createError(
-      `You requested ${rounds} rounds, but this tournament allows a maximum of ${maximumRounds} rounds.`,
+      `You requested ${rounds} rounds, but the maximum is ${maximumRounds}.`,
       "ROUND_LIMIT"
     );
   }
@@ -442,16 +421,20 @@ function resolveRounds({
 
 
 // ======================================================
-// ROUND ROBIN - INDIVIDUAL
+// ROUND ROBIN
 // ======================================================
 
 function getRoundRobinPairings(
   players,
   round
 ) {
-  let ordered = [...players];
+  let ordered = [
+    ...players,
+  ];
 
-  if (ordered.length % 2 !== 0) {
+  if (
+    ordered.length % 2 !== 0
+  ) {
     ordered.push(null);
   }
 
@@ -467,7 +450,9 @@ function getRoundRobinPairings(
     currentRound++
   ) {
     rotating = [
-      rotating[rotating.length - 1],
+      rotating[
+        rotating.length - 1
+      ],
       ...rotating.slice(
         0,
         rotating.length - 1
@@ -493,7 +478,10 @@ function getRoundRobinPairings(
     const playerB =
       finalOrder[i + 1];
 
-    if (!playerA || !playerB) {
+    if (
+      !playerA ||
+      !playerB
+    ) {
       continue;
     }
 
@@ -511,17 +499,12 @@ function getRoundRobinPairings(
 
 
 // ======================================================
-// SWISS - BASIC
-//
-// NOTE:
-// A complete Swiss implementation requires previous
-// results, scores and opponent history.
-//
-// This version provides deterministic random pairing
-// while preserving the service interface.
+// SWISS
 // ======================================================
 
-function getSwissPairings(players) {
+function getSwissPairings(
+  players
+) {
   const ordered =
     shuffle(players);
 
@@ -538,7 +521,10 @@ function getSwissPairings(players) {
     const playerB =
       ordered[i + 1];
 
-    if (!playerA || !playerB) {
+    if (
+      !playerA ||
+      !playerB
+    ) {
       continue;
     }
 
@@ -556,47 +542,24 @@ function getSwissPairings(players) {
 
 
 // ======================================================
-// GENERATE ONE INDIVIDUAL ROUND
+// GENERATE ONE ROUND
 // ======================================================
 
-async function generateIndividualRound({
-  tournament,
-  tournamentId,
+function generateIndividualRound({
   category,
   round,
   players,
   availableAt,
+  format,
+  mode,
 }) {
-  if (players.length < 2) {
-    throw createError(
-      `At least two active players are required in the "${category}" category.`,
-      "INSUFFICIENT_PLAYERS"
-    );
-  }
-
-  const existing =
-    await prisma.pairing.count({
-      where: {
-        tournamentId,
-        category,
-        round,
-      },
-    });
-
-  if (existing > 0) {
-    throw createError(
-      `${category}, Round ${round} pairings already exist.`,
-      "PAIRINGS_ALREADY_EXIST"
-    );
-  }
-
-  let games;
+  let pairings;
 
   if (
-    tournament.format ===
+    format ===
     FORMATS.ROUND_ROBIN
   ) {
-    games =
+    pairings =
       getRoundRobinPairings(
         players,
         round
@@ -604,157 +567,59 @@ async function generateIndividualRound({
   }
 
   else if (
-    tournament.format ===
+    format ===
     FORMATS.SWISS
   ) {
-    games =
-      getSwissPairings(players);
+    pairings =
+      getSwissPairings(
+        players
+      );
   }
 
   else {
     throw createError(
-      `Unsupported tournament format: ${tournament.format}.`,
-      "INVALID_TOURNAMENT_FORMAT"
+      "Invalid pairing format.",
+      "INVALID_FORMAT"
     );
   }
 
-  if (games.length === 0) {
-    throw createError(
-      `No pairings could be generated for ${category}, Round ${round}.`,
-      "NO_PAIRINGS"
-    );
-  }
+  return pairings.map(
+    (pairing) => ({
+      ...pairing,
 
-  const data =
-    games.map((game) => ({
-      tournamentId,
       category,
+
       round,
-      mode:
-        tournament.mode,
-      whitePlayerId:
-        game.whitePlayerId,
-      blackPlayerId:
-        game.blackPlayerId,
+
+      mode,
+
       availableAt,
-    }));
-
-  const created =
-    await prisma.pairing.createMany({
-      data,
-    });
-
-  return {
-    round,
-    count:
-      created.count,
-    availableAt,
-  };
+    })
+  );
 }
 
 
 // ======================================================
-// GENERATE INDIVIDUAL PAIRINGS
-//
-// POST /pairings/generate
-//
-// Body:
-//
-// {
-//   tournamentId: 1,
-//   category: "HEAVYWEIGHT",
-//   rounds: 3,
-//   hoursPerRound: 2
-// }
-//
-// rounds is OPTIONAL.
-// hoursPerRound is OPTIONAL.
+// GENERATE AND SAVE PAIRINGS
 // ======================================================
 
 async function generatePairings({
-  tournamentId,
   category,
   rounds,
   hoursPerRound,
   availableAt,
+  format = FORMATS.ROUND_ROBIN,
+  mode = MODES.RAPID,
 }) {
-  tournamentId = validateId(
-    tournamentId,
-    "tournament ID"
-  );
-
-  category =
+  const cleanCategory =
     validateCategory(
       category
     );
 
-  const tournament =
-    await getTournament(
-      tournamentId
+  const requestedRounds =
+    validateOptionalRounds(
+      rounds
     );
-
-  ensureTournamentActive(
-    tournament
-  );
-
-  if (
-    tournament.type ===
-    TOURNAMENT_TYPES.TEAM
-  ) {
-    throw createError(
-      "This is a team tournament. Use the team pairing options.",
-      "WRONG_TOURNAMENT_TYPE"
-    );
-  }
-
-  if (
-    tournament.format ===
-    "TEAM_BOARD"
-  ) {
-    throw createError(
-      "Team board tournaments require team pairing generation.",
-      "WRONG_TOURNAMENT_FORMAT"
-    );
-  }
-
-  const players =
-    (
-      await getTournamentPlayers(
-        tournamentId
-      )
-    ).filter(
-      (player) =>
-        player.status === "ACTIVE" &&
-        String(player.category).trim() ===
-          category
-    );
-
-  if (players.length < 2) {
-    throw createError(
-      `At least two active players are required in the "${category}" category.`,
-      "INSUFFICIENT_PLAYERS"
-    );
-  }
-
-  const maximumRounds =
-    calculateMaximumRounds({
-      format:
-        tournament.format,
-
-      participantCount:
-        players.length,
-
-      tournamentTotalRounds:
-        tournament.totalRounds,
-    });
-
-  const roundsToGenerate =
-    resolveRounds({
-      requestedRounds:
-        rounds,
-
-      maximumRounds,
-    });
 
   const intervalHours =
     validateHoursPerRound(
@@ -767,11 +632,109 @@ async function generatePairings({
       "availableAt"
     );
 
+  // ----------------------------------------------------
+  // VALIDATE FORMAT
+  // ----------------------------------------------------
+
+  const cleanFormat =
+    String(format)
+      .trim()
+      .toUpperCase();
+
+  if (
+    !Object.values(FORMATS).includes(
+      cleanFormat
+    )
+  ) {
+    throw createError(
+      "Invalid pairing format.",
+      "INVALID_FORMAT"
+    );
+  }
+
+  // ----------------------------------------------------
+  // VALIDATE MODE
+  // ----------------------------------------------------
+
+  const cleanMode =
+    validateMode(mode);
+
+  // ----------------------------------------------------
+  // GET ACTIVE PLAYERS
+  // ----------------------------------------------------
+
+  const players =
+    await getPairingPlayers(
+      cleanCategory
+    );
+
+  // ----------------------------------------------------
+  // CALCULATE MAXIMUM ROUNDS
+  // ----------------------------------------------------
+
+  const maximumRounds =
+    calculateMaximumRounds({
+      format:
+        cleanFormat,
+
+      participantCount:
+        players.length,
+    });
+
+  // ----------------------------------------------------
+  // RESOLVE TOTAL ROUNDS
+  // ----------------------------------------------------
+
+  const totalRounds =
+    resolveRounds({
+      requestedRounds,
+
+      maximumRounds,
+    });
+
+  console.log(
+    "🔥 GENERATING AND SAVING PAIRINGS"
+  );
+
+  console.log(
+    "Category:",
+    cleanCategory
+  );
+
+  console.log(
+    "Mode:",
+    cleanMode
+  );
+
+  console.log(
+    "Players:",
+    players.length
+  );
+
+  console.log(
+    "Rounds:",
+    totalRounds
+  );
+
+  console.log(
+    "Format:",
+    cleanFormat
+  );
+
+  console.log(
+    "Hours per round:",
+    intervalHours
+  );
+
+  // ----------------------------------------------------
+  // GENERATE ALL ROUNDS
+  // ----------------------------------------------------
+
   const generatedRounds = [];
 
   for (
     let index = 0;
-    index < roundsToGenerate;
+    index < totalRounds;
     index++
   ) {
     const currentRound =
@@ -780,20 +743,17 @@ async function generatePairings({
     const roundAvailableAt =
       new Date(
         baseDate.getTime() +
-          index *
-            intervalHours *
-            60 *
-            60 *
-            1000
+        index *
+          intervalHours *
+          60 *
+          60 *
+          1000
       );
 
-    const result =
-      await generateIndividualRound({
-        tournament,
-
-        tournamentId,
-
-        category,
+    const roundPairings =
+      generateIndividualRound({
+        category:
+          cleanCategory,
 
         round:
           currentRound,
@@ -802,136 +762,318 @@ async function generatePairings({
 
         availableAt:
           roundAvailableAt,
+
+        format:
+          cleanFormat,
+
+        mode:
+          cleanMode,
       });
 
-    generatedRounds.push(
-      result
+    if (
+      roundPairings.length === 0
+    ) {
+      throw createError(
+        `No pairings could be generated for Round ${currentRound}.`,
+        "NO_PAIRINGS"
+      );
+    }
+
+    generatedRounds.push({
+      round:
+        currentRound,
+
+      availableAt:
+        roundAvailableAt,
+
+      pairings:
+        roundPairings,
+    });
+  }
+
+  // ----------------------------------------------------
+  // FLATTEN ALL PAIRINGS
+  // ----------------------------------------------------
+
+  const allPairings =
+    generatedRounds.flatMap(
+      (round) =>
+        round.pairings
+    );
+
+  if (
+    allPairings.length === 0
+  ) {
+    throw createError(
+      "No pairings were generated.",
+      "NO_PAIRINGS"
     );
   }
 
+  console.log(
+    `🔥 TOTAL PAIRINGS TO SAVE: ${allPairings.length}`
+  );
+
+  // ----------------------------------------------------
+  // SAVE EVERYTHING IN ONE TRANSACTION
+  // ----------------------------------------------------
+
+  const savedPairings =
+    await prisma.$transaction(
+      async (tx) => {
+
+        // ----------------------------------------------
+        // REMOVE OLD PAIRINGS
+        // FOR THIS CATEGORY + MODE
+        // ----------------------------------------------
+
+        const deleted =
+          await tx.pairing.deleteMany({
+            where: {
+              category:
+                cleanCategory,
+
+              mode:
+                cleanMode,
+            },
+          });
+
+        console.log(
+          `🔥 OLD ${cleanCategory} ${cleanMode} PAIRINGS REMOVED: ${deleted.count}`
+        );
+
+        // ----------------------------------------------
+        // CREATE NEW PAIRINGS
+        // ----------------------------------------------
+
+        await tx.pairing.createMany({
+          data:
+            allPairings.map(
+              (pairing) => ({
+                category:
+                  pairing.category,
+
+                round:
+                  pairing.round,
+
+                mode:
+                  pairing.mode,
+
+                whitePlayerId:
+                  pairing.whitePlayerId,
+
+                blackPlayerId:
+                  pairing.blackPlayerId,
+
+                availableAt:
+                  pairing.availableAt,
+              })
+            ),
+        });
+
+        // ----------------------------------------------
+        // READ SAVED PAIRINGS
+        // ----------------------------------------------
+
+        const saved =
+          await tx.pairing.findMany({
+            where: {
+              category:
+                cleanCategory,
+
+              mode:
+                cleanMode,
+            },
+
+            include: {
+              whitePlayer: true,
+              blackPlayer: true,
+            },
+
+            orderBy: [
+              {
+                round:
+                  "asc",
+              },
+
+              {
+                id:
+                  "asc",
+              },
+            ],
+          });
+
+        return saved;
+      }
+    );
+
+  // ----------------------------------------------------
+  // GROUP SAVED PAIRINGS BY ROUND
+  // ----------------------------------------------------
+
+  const savedRounds = [];
+
+  for (
+    let round = 1;
+    round <= totalRounds;
+    round++
+  ) {
+    const roundPairings =
+      savedPairings.filter(
+        (pairing) =>
+          pairing.round ===
+          round
+      );
+
+    const firstPairing =
+      roundPairings[0];
+
+    savedRounds.push({
+      round,
+
+      availableAt:
+        firstPairing?.availableAt ||
+        generatedRounds[
+          round - 1
+        ]?.availableAt ||
+        null,
+
+      pairings:
+        roundPairings,
+    });
+  }
+
+  // ----------------------------------------------------
+  // FINAL RESPONSE
+  // ----------------------------------------------------
+
+  console.log(
+    `🔥 PAIRINGS SAVED SUCCESSFULLY: ${savedPairings.length}`
+  );
+
   return {
-    tournamentId,
-
-    category,
-
-    format:
-      tournament.format,
+    category:
+      cleanCategory,
 
     mode:
-      tournament.mode,
+      cleanMode,
+
+    format:
+      cleanFormat,
+
+    players:
+      players.length,
 
     maximumRounds,
 
-    requestedRounds:
-      rounds ?? null,
+    rounds:
+      totalRounds,
 
     hoursPerRound:
       intervalHours,
 
-    generatedRounds,
-
-    count:
-      generatedRounds.reduce(
-        (sum, item) =>
-          sum + item.count,
-        0
-      ),
+    generatedRounds:
+      savedRounds,
   };
 }
 
 
 // ======================================================
-// GET INDIVIDUAL PAIRINGS
+// GET PAIRINGS
 // ======================================================
 
 async function getPairings({
-  tournamentId,
   round,
   category,
+  mode,
 }) {
-  tournamentId = validateId(
-    tournamentId,
-    "tournament ID"
-  );
+  const where = {};
 
-  if (round !== undefined) {
-    round =
-      validateRound(round);
+  // ----------------------------------------------------
+  // ROUND
+  // ----------------------------------------------------
+
+  if (
+    round !== undefined &&
+    round !== null &&
+    round !== ""
+  ) {
+    where.round =
+      validateRound(
+        round
+      );
   }
 
-  const tournament =
-    await getTournament(
-      tournamentId
-    );
+  // ----------------------------------------------------
+  // CATEGORY
+  // ----------------------------------------------------
 
   const cleanCategory =
     validateOptionalCategory(
       category
     );
 
-  const where = {
-    tournamentId,
+  if (cleanCategory) {
+    where.category =
+      cleanCategory;
+  }
 
-    ...(round !== undefined
-      ? { round }
-      : {}),
+  // ----------------------------------------------------
+  // MODE
+  // ----------------------------------------------------
 
-    ...(cleanCategory
-      ? {
-          category:
-            cleanCategory,
-        }
-      : {}),
-  };
+  const cleanMode =
+    mode !== undefined &&
+    mode !== null &&
+    String(mode).trim() !== ""
+      ? validateMode(mode)
+      : null;
+
+  if (cleanMode) {
+    where.mode =
+      cleanMode;
+  }
+
+  console.log(
+    "🔥 GET PAIRINGS:",
+    where
+  );
+
+  // ----------------------------------------------------
+  // DATABASE QUERY
+  // ----------------------------------------------------
 
   const pairings =
     await prisma.pairing.findMany({
       where,
 
       include: {
-        whitePlayer: {
-          select: {
-            id: true,
-            fullName: true,
-            username: true,
-            category: true,
-            status: true,
-          },
-        },
-
-        blackPlayer: {
-          select: {
-            id: true,
-            fullName: true,
-            username: true,
-            category: true,
-            status: true,
-          },
-        },
+        whitePlayer: true,
+        blackPlayer: true,
       },
 
       orderBy: [
         {
-          round: "asc",
+          round:
+            "asc",
         },
 
         {
-          id: "asc",
+          id:
+            "asc",
         },
       ],
     });
 
   return {
-    tournamentId,
-
-    tournamentType:
-      tournament.type,
+    round:
+      round ?? null,
 
     category:
       cleanCategory,
 
-    round:
-      round ?? null,
+    mode:
+      cleanMode,
 
     count:
       pairings.length,
@@ -942,87 +1084,87 @@ async function getPairings({
 
 
 // ======================================================
-// DELETE INDIVIDUAL PAIRINGS
+// DELETE PAIRINGS
 // ======================================================
 
 async function deletePairings({
-  tournamentId,
   round,
   category,
+  mode,
 }) {
-  tournamentId = validateId(
-    tournamentId,
-    "tournament ID"
-  );
+  const where = {};
 
-  round =
-    validateRound(round);
+  // ----------------------------------------------------
+  // ROUND
+  // ----------------------------------------------------
 
-  await getTournament(
-    tournamentId
-  );
+  if (
+    round !== undefined &&
+    round !== null &&
+    round !== ""
+  ) {
+    where.round =
+      validateRound(
+        round
+      );
+  }
+
+  // ----------------------------------------------------
+  // CATEGORY
+  // ----------------------------------------------------
 
   const cleanCategory =
     validateOptionalCategory(
       category
     );
 
-  const where = {
-    tournamentId,
-    round,
+  if (cleanCategory) {
+    where.category =
+      cleanCategory;
+  }
 
-    ...(cleanCategory
-      ? {
-          category:
-            cleanCategory,
-        }
-      : {}),
-  };
+  // ----------------------------------------------------
+  // MODE
+  // ----------------------------------------------------
 
-  const pairings =
-    await prisma.pairing.findMany({
+  const cleanMode =
+    mode !== undefined &&
+    mode !== null &&
+    String(mode).trim() !== ""
+      ? validateMode(mode)
+      : null;
+
+  if (cleanMode) {
+    where.mode =
+      cleanMode;
+  }
+
+  console.log(
+    "🔥 DELETE PAIRINGS:",
+    where
+  );
+
+  // ----------------------------------------------------
+  // CHECK EXISTING PAIRINGS
+  // ----------------------------------------------------
+
+  const existing =
+    await prisma.pairing.count({
       where,
-
-      select: {
-        id: true,
-      },
     });
 
-  if (pairings.length === 0) {
+  if (
+    existing === 0
+  ) {
     throw createError(
-      cleanCategory
-        ? `No pairings found for ${cleanCategory}, Round ${round}.`
-        : `No pairings found for Round ${round}.`,
+      "No pairings found.",
       "PAIRINGS_NOT_FOUND"
     );
   }
 
-  const pairingIds =
-    pairings.map(
-      (pairing) =>
-        pairing.id
-    );
-
-  const result =
-    await prisma.gameResult.findFirst({
-      where: {
-        pairingId: {
-          in:
-            pairingIds,
-        },
-      },
-
-      select: {
-        id: true,
-      },
-    });
-
-  if (result) {
-    throw createError(
-      "These pairings cannot be deleted because a game result has already been recorded.",
-      "PAIRINGS_LOCKED"
-    );
-  }
+  // ----------------------------------------------------
+  // DELETE
+  // ----------------------------------------------------
 
   const deleted =
     await prisma.pairing.deleteMany({
@@ -1030,41 +1172,144 @@ async function deletePairings({
     });
 
   return {
-    tournamentId,
-    round,
+    round:
+      round ?? null,
+
     category:
       cleanCategory,
+
+    mode:
+      cleanMode,
+
     deleted:
       deleted.count,
   };
 }
 
-
 // ======================================================
-// TEAM DATA
-// ======================================================
-//
-// IMPORTANT:
-// This function currently uses all teams.
-//
-// If your Prisma schema has a tournament/team relation,
-// replace this query with that relation.
-//
-// I am deliberately NOT inventing a relation name.
+// TEAM PAIRING CONSTANTS
 // ======================================================
 
-async function getTournamentTeams(
-  tournamentId
+const TEAM_PAIRING_MAX_ROUNDS = 200;
+
+
+// ======================================================
+// TEAM ID VALIDATION
+// ======================================================
+
+function validateTeamId(value, name = "Team ID") {
+  const id = Number(value);
+
+  if (
+    !Number.isInteger(id) ||
+    id <= 0
+  ) {
+    throw createError(
+      `Invalid ${name}.`,
+      "INVALID_TEAM_ID"
+    );
+  }
+
+  return id;
+}
+
+
+// ======================================================
+// TEAM MODE VALIDATION
+// MODE IS REQUIRED FOR TEAM PAIRINGS
+// ======================================================
+
+function validateRequiredTeamMode(mode) {
+
+  if (
+    mode === undefined ||
+    mode === null ||
+    String(mode).trim() === ""
+  ) {
+    throw createError(
+      "Mode is required for team pairing.",
+      "MODE_REQUIRED"
+    );
+  }
+
+  const cleanMode =
+    String(mode)
+      .trim()
+      .toUpperCase();
+
+  if (
+    !Object.values(MODES).includes(
+      cleanMode
+    )
+  ) {
+    throw createError(
+      "Invalid chess mode. Allowed modes are RAPID, BLITZ, or BULLET.",
+      "INVALID_MODE"
+    );
+  }
+
+  return cleanMode;
+}
+
+
+// ======================================================
+// TEAM PAIRING ROUND VALIDATION
+// ======================================================
+
+function validateTeamRounds(value) {
+
+  if (
+    value === undefined ||
+    value === null ||
+    value === ""
+  ) {
+    return 1;
+  }
+
+  const rounds = Number(value);
+
+  if (
+    !Number.isInteger(rounds) ||
+    rounds <= 0
+  ) {
+    throw createError(
+      "Number of team pairing rounds must be a positive integer.",
+      "INVALID_TOTAL_ROUNDS"
+    );
+  }
+
+  if (
+    rounds > TEAM_PAIRING_MAX_ROUNDS
+  ) {
+    throw createError(
+      `Number of rounds cannot exceed ${TEAM_PAIRING_MAX_ROUNDS}.`,
+      "ROUND_LIMIT"
+    );
+  }
+
+  return rounds;
+}
+
+
+// ======================================================
+// GET TEAM
+// ======================================================
+
+async function getTeamForPairing(
+  teamId,
+  name
 ) {
-  tournamentId = validateId(
-    tournamentId,
-    "tournament ID"
-  );
 
-  const teams =
-    await prisma.team.findMany({
-      orderBy: {
-        id: "asc",
+  const id =
+    validateTeamId(
+      teamId,
+      name
+    );
+
+  const team =
+    await prisma.team.findUnique({
+      where: {
+        id,
       },
 
       select: {
@@ -1076,206 +1321,120 @@ async function getTournamentTeams(
       },
     });
 
-  return teams;
-}
-
-
-// ======================================================
-// GET TEAM OPTIONS
-//
-// GET /pairings/teams?tournamentId=1
-// ======================================================
-
-async function getAvailableTeams({
-  tournamentId,
-}) {
-  tournamentId = validateId(
-    tournamentId,
-    "tournament ID"
-  );
-
-  const tournament =
-    await getTournament(
-      tournamentId
-    );
-
-  if (
-    tournament.type !==
-    TOURNAMENT_TYPES.TEAM
-  ) {
+  if (!team) {
     throw createError(
-      "This is not a team tournament.",
-      "WRONG_TOURNAMENT_TYPE"
+      `${name} does not exist.`,
+      "TEAM_NOT_FOUND"
     );
   }
 
-  const teams =
-    await getTournamentTeams(
-      tournamentId
-    );
-
-  return {
-    tournamentId,
-
-    tournamentType:
-      tournament.type,
-
-    teams,
-  };
+  return team;
 }
 
 
 // ======================================================
-// TEAM ROUND ROBIN
+// GET TEAM PLAYERS
 // ======================================================
 
-function getTeamRoundRobinPairings(
-  teams,
-  round
-) {
-  let ordered =
-    [...teams];
+async function getTeamPlayers(teamId) {
 
-  if (ordered.length % 2 !== 0) {
-    ordered.push(null);
-  }
+  const id =
+    validateTeamId(
+      teamId,
+      "Team ID"
+    );
 
-  const fixed =
-    ordered[0];
+  const players =
+    await prisma.player.findMany({
+      where: {
+        teamId: id,
 
-  let rotating =
-    ordered.slice(1);
+        status: "ACTIVE",
+      },
 
-  for (
-    let currentRound = 1;
-    currentRound < round;
-    currentRound++
-  ) {
-    rotating = [
-      rotating[rotating.length - 1],
-      ...rotating.slice(
-        0,
-        rotating.length - 1
-      ),
-    ];
-  }
+      select: {
+        id: true,
+        fullName: true,
+        username: true,
+        teamId: true,
+        status: true,
+      },
 
-  const finalOrder = [
-    fixed,
-    ...rotating,
-  ];
-
-  const pairings = [];
-
-  for (
-    let i = 0;
-    i < finalOrder.length;
-    i += 2
-  ) {
-    const teamA =
-      finalOrder[i];
-
-    const teamB =
-      finalOrder[i + 1];
-
-    if (!teamA || !teamB) {
-      continue;
-    }
-
-    pairings.push({
-      teamAId:
-        teamA.id,
-
-      teamBId:
-        teamB.id,
+      orderBy: {
+        id: "asc",
+      },
     });
-  }
 
-  return pairings;
+  return players;
 }
 
 
 // ======================================================
-// GENERATE TEAM VS TEAM
-//
-// POST /pairings/team/generate
-//
-// Body:
-//
-// {
-//   tournamentId: 1,
-//   rounds: 3,
-//   hoursPerRound: 2
-// }
-//
+// GENERATE TEAM PAIRINGS
 // ======================================================
 
 async function generateTeamPairings({
-  tournamentId,
+  teamAId,
+  teamBId,
   rounds,
   hoursPerRound,
   availableAt,
+  mode,
 }) {
-  tournamentId = validateId(
-    tournamentId,
-    "tournament ID"
-  );
 
-  const tournament =
-    await getTournament(
-      tournamentId
+  const cleanTeamAId =
+    validateTeamId(
+      teamAId,
+      "Team A ID"
     );
 
-  ensureTournamentActive(
-    tournament
-  );
+  const cleanTeamBId =
+    validateTeamId(
+      teamBId,
+      "Team B ID"
+    );
+
 
   if (
-    tournament.type !==
-    TOURNAMENT_TYPES.TEAM
+    cleanTeamAId ===
+    cleanTeamBId
   ) {
     throw createError(
-      "Team pairings can only be generated for TEAM tournaments.",
-      "WRONG_TOURNAMENT_TYPE"
+      "A team cannot be paired against itself.",
+      "SAME_TEAM"
     );
   }
 
-  const teams =
-    await getTournamentTeams(
-      tournamentId
+
+  // ----------------------------------------------------
+  // MODE IS REQUIRED
+  // ----------------------------------------------------
+
+  const cleanMode =
+    validateRequiredTeamMode(
+      mode
     );
 
-  if (teams.length < 2) {
-    throw createError(
-      "At least two teams are required.",
-      "INSUFFICIENT_TEAMS"
+
+  // ----------------------------------------------------
+  // ROUNDS
+  // ----------------------------------------------------
+
+  const totalRounds =
+    validateTeamRounds(
+      rounds
     );
-  }
 
-  const maximumRounds =
-    calculateMaximumRounds({
-      format:
-        tournament.format,
 
-      participantCount:
-        teams.length,
-
-      tournamentTotalRounds:
-        tournament.totalRounds,
-    });
-
-  const roundsToGenerate =
-    resolveRounds({
-      requestedRounds:
-        rounds,
-
-      maximumRounds,
-    });
+  // ----------------------------------------------------
+  // TIME
+  // ----------------------------------------------------
 
   const intervalHours =
     validateHoursPerRound(
       hoursPerRound
     );
+
 
   const baseDate =
     validateDate(
@@ -1283,337 +1442,347 @@ async function generateTeamPairings({
       "availableAt"
     );
 
-  const generatedRounds = [];
 
-  for (
-    let index = 0;
-    index < roundsToGenerate;
-    index++
+  // ----------------------------------------------------
+  // GET TEAMS
+  // ----------------------------------------------------
+
+  const [
+    teamA,
+    teamB,
+  ] = await Promise.all([
+
+    getTeamForPairing(
+      cleanTeamAId,
+      "Team A"
+    ),
+
+    getTeamForPairing(
+      cleanTeamBId,
+      "Team B"
+    ),
+
+  ]);
+
+
+  // ----------------------------------------------------
+  // MAKE SURE BOTH TEAMS HAVE PLAYERS
+  // ----------------------------------------------------
+
+  const [
+    teamAPlayers,
+    teamBPlayers,
+  ] = await Promise.all([
+
+    getTeamPlayers(
+      cleanTeamAId
+    ),
+
+    getTeamPlayers(
+      cleanTeamBId
+    ),
+
+  ]);
+
+
+  if (
+    teamAPlayers.length === 0
   ) {
-    const currentRound =
-      index + 1;
-
-    const existing =
-      await prisma.teamPairing.count({
-        where: {
-          tournamentId,
-          round:
-            currentRound,
-        },
-      });
-
-    if (existing > 0) {
-      throw createError(
-        `Team pairings for Round ${currentRound} already exist.`,
-        "PAIRINGS_ALREADY_EXIST"
-      );
-    }
-
-    let pairings;
-
-    if (
-      tournament.format ===
-      FORMATS.ROUND_ROBIN
-    ) {
-      pairings =
-        getTeamRoundRobinPairings(
-          teams,
-          currentRound
-        );
-    }
-
-    else if (
-      tournament.format ===
-      FORMATS.SWISS
-    ) {
-      const shuffled =
-        shuffle(teams);
-
-      pairings = [];
-
-      for (
-        let i = 0;
-        i < shuffled.length;
-        i += 2
-      ) {
-        const teamA =
-          shuffled[i];
-
-        const teamB =
-          shuffled[i + 1];
-
-        if (!teamA || !teamB) {
-          continue;
-        }
-
-        pairings.push({
-          teamAId:
-            teamA.id,
-
-          teamBId:
-            teamB.id,
-        });
-      }
-    }
-
-    else {
-      throw createError(
-        `Unsupported team tournament format: ${tournament.format}.`,
-        "INVALID_TOURNAMENT_FORMAT"
-      );
-    }
-
-    if (pairings.length === 0) {
-      throw createError(
-        `No team pairings could be generated for Round ${currentRound}.`,
-        "NO_PAIRINGS"
-      );
-    }
-
-    const roundAvailableAt =
-      new Date(
-        baseDate.getTime() +
-          index *
-            intervalHours *
-            60 *
-            60 *
-            1000
-      );
-
-    const data =
-      pairings.map(
-        (pairing) => ({
-          tournamentId,
-
-          round:
-            currentRound,
-
-          teamAId:
-            pairing.teamAId,
-
-          teamBId:
-            pairing.teamBId,
-
-          availableAt:
-            roundAvailableAt,
-        })
-      );
-
-    const created =
-      await prisma.teamPairing.createMany({
-        data,
-      });
-
-    generatedRounds.push({
-      round:
-        currentRound,
-
-      count:
-        created.count,
-
-      availableAt:
-        roundAvailableAt,
-    });
+    throw createError(
+      `${teamA.name} has no active players.`,
+      "TEAM_A_NO_PLAYERS"
+    );
   }
 
+
+  if (
+    teamBPlayers.length === 0
+  ) {
+    throw createError(
+      `${teamB.name} has no active players.`,
+      "TEAM_B_NO_PLAYERS"
+    );
+  }
+
+
+  // ----------------------------------------------------
+  // NUMBER OF BOARDS
+  // ----------------------------------------------------
+
+  const boardCount =
+    Math.min(
+      teamAPlayers.length,
+      teamBPlayers.length
+    );
+
+
+  if (
+    boardCount === 0
+  ) {
+    throw createError(
+      "Both teams must have at least one active player.",
+      "NOT_ENOUGH_PLAYERS"
+    );
+  }
+
+
+  console.log(
+    "🔥 GENERATING TEAM PAIRINGS"
+  );
+
+  console.log(
+    "Team A:",
+    teamA.name,
+    cleanTeamAId
+  );
+
+  console.log(
+    "Team B:",
+    teamB.name,
+    cleanTeamBId
+  );
+
+  console.log(
+    "Mode:",
+    cleanMode
+  );
+
+  console.log(
+    "Rounds:",
+    totalRounds
+  );
+
+  console.log(
+    "Boards:",
+    boardCount
+  );
+
+
+  // ----------------------------------------------------
+  // SAVE EVERYTHING IN TRANSACTION
+  // ----------------------------------------------------
+
+  const saved =
+    await prisma.$transaction(
+      async (tx) => {
+
+        // ----------------------------------------------
+        // REMOVE OLD TEAM PAIRINGS
+        // SAME TEAMS + SAME MODE
+        // ----------------------------------------------
+
+        const existing =
+          await tx.teamPairing.findMany({
+            where: {
+              OR: [
+                {
+                  teamAId:
+                    cleanTeamAId,
+
+                  teamBId:
+                    cleanTeamBId,
+                },
+
+                {
+                  teamAId:
+                    cleanTeamBId,
+
+                  teamBId:
+                    cleanTeamAId,
+                },
+              ],
+
+              mode:
+                cleanMode,
+            },
+
+            select: {
+              id: true,
+            },
+          });
+
+
+        const existingIds =
+          existing.map(
+            (item) =>
+              item.id
+          );
+
+
+        if (
+          existingIds.length > 0
+        ) {
+
+          await tx.teamGame.deleteMany({
+            where: {
+              teamPairingId: {
+                in:
+                  existingIds,
+              },
+            },
+          });
+
+
+          await tx.teamPairing.deleteMany({
+            where: {
+              id: {
+                in:
+                  existingIds,
+              },
+            },
+          });
+
+        }
+
+
+        // ----------------------------------------------
+        // CREATE TEAM PAIRINGS
+        // ----------------------------------------------
+
+        const createdTeamPairings =
+          [];
+
+
+        for (
+          let round = 1;
+          round <= totalRounds;
+          round++
+        ) {
+
+          const roundAvailableAt =
+            new Date(
+              baseDate.getTime() +
+              (
+                (round - 1) *
+                intervalHours *
+                60 *
+                60 *
+                1000
+              )
+            );
+
+
+          const teamPairing =
+            await tx.teamPairing.create({
+              data: {
+
+                teamAId:
+                  cleanTeamAId,
+
+                teamBId:
+                  cleanTeamBId,
+
+                round,
+
+                mode:
+                  cleanMode,
+
+                availableAt:
+                  roundAvailableAt,
+
+              },
+
+              include: {
+                teamA: true,
+                teamB: true,
+              },
+            });
+
+
+          createdTeamPairings.push(
+            teamPairing
+          );
+
+        }
+
+
+        return createdTeamPairings;
+
+      }
+    );
+
+
+  console.log(
+    `🔥 TEAM PAIRINGS SAVED: ${saved.length}`
+  );
+
+
   return {
-    tournamentId,
+    teamA: {
+      id:
+        teamA.id,
 
-    format:
-      tournament.format,
+      name:
+        teamA.name,
+    },
 
-    maximumRounds,
+    teamB: {
+      id:
+        teamB.id,
 
-    requestedRounds:
-      rounds ?? null,
+      name:
+        teamB.name,
+    },
+
+    mode:
+      cleanMode,
+
+    rounds:
+      totalRounds,
 
     hoursPerRound:
       intervalHours,
 
-    generatedRounds,
+    boards:
+      boardCount,
 
-    count:
-      generatedRounds.reduce(
-        (sum, item) =>
-          sum + item.count,
-        0
-      ),
+    pairings:
+      saved,
   };
 }
 
 
 // ======================================================
-// GET TEAM PAIRINGS
+// GENERATE BOARD-TO-BOARD PAIRINGS
 // ======================================================
 
-async function getTeamPairings({
-  tournamentId,
-  round,
-}) {
-  tournamentId = validateId(
-    tournamentId,
-    "tournament ID"
-  );
-
-  if (round !== undefined) {
-    round =
-      validateRound(round);
-  }
-
-  await getTournament(
-    tournamentId
-  );
-
-  const pairings =
-    await prisma.teamPairing.findMany({
-      where: {
-        tournamentId,
-
-        ...(round !== undefined
-          ? {
-              round,
-            }
-          : {}),
-      },
-
-      include: {
-        teamA: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            totalPoints: true,
-            captainId: true,
-          },
-        },
-
-        teamB: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            totalPoints: true,
-            captainId: true,
-          },
-        },
-      },
-
-      orderBy: [
-        {
-          round: "asc",
-        },
-
-        {
-          id: "asc",
-        },
-      ],
-    });
-
-  return {
-    tournamentId,
-
-    round:
-      round ?? null,
-
-    count:
-      pairings.length,
-
-    pairings,
-  };
-}
-
-
-// ======================================================
-// GENERATE TEAM BOARD PAIRINGS
-// ======================================================
-
-async function generateTeamTablePairings({
+async function generateBoardPairings({
   teamPairingId,
 }) {
-  teamPairingId =
-    validateId(
-      teamPairingId,
-      "team pairing ID"
+
+  const id =
+    Number(teamPairingId);
+
+
+  if (
+    !Number.isInteger(id) ||
+    id <= 0
+  ) {
+    throw createError(
+      "Invalid team pairing ID.",
+      "INVALID_TEAM_PAIRING_ID"
     );
+  }
+
+
+  // ----------------------------------------------------
+  // GET TEAM PAIRING
+  // ----------------------------------------------------
 
   const teamPairing =
     await prisma.teamPairing.findUnique({
+
       where: {
-        id:
-          teamPairingId,
+        id,
       },
 
       include: {
-        teamA: {
-          include: {
-            memberships: {
-              where: {
-                status: "ACTIVE",
-
-                boardPosition: {
-                  not: null,
-                },
-              },
-
-              include: {
-                player: {
-                  select: {
-                    id: true,
-                    fullName: true,
-                    username: true,
-                    category: true,
-                    status: true,
-                  },
-                },
-              },
-
-              orderBy: {
-                boardPosition:
-                  "asc",
-              },
-            },
-          },
-        },
-
-        teamB: {
-          include: {
-            memberships: {
-              where: {
-                status: "ACTIVE",
-
-                boardPosition: {
-                  not: null,
-                },
-              },
-
-              include: {
-                player: {
-                  select: {
-                    id: true,
-                    fullName: true,
-                    username: true,
-                    category: true,
-                    status: true,
-                  },
-                },
-              },
-
-              orderBy: {
-                boardPosition:
-                  "asc",
-              },
-            },
-          },
-        },
-
-        games: {
-          select: {
-            id: true,
-            boardPosition: true,
-          },
-        },
+        teamA: true,
+        teamB: true,
       },
+
     });
+
 
   if (!teamPairing) {
     throw createError(
@@ -1622,133 +1791,169 @@ async function generateTeamTablePairings({
     );
   }
 
-  const teamAPlayers =
-    teamPairing.teamA
-      .memberships;
 
-  const teamBPlayers =
-    teamPairing.teamB
-      .memberships;
+  // ----------------------------------------------------
+  // GET ACTIVE PLAYERS
+  // ----------------------------------------------------
+
+  const [
+    teamAPlayers,
+    teamBPlayers,
+  ] = await Promise.all([
+
+    getTeamPlayers(
+      teamPairing.teamAId
+    ),
+
+    getTeamPlayers(
+      teamPairing.teamBId
+    ),
+
+  ]);
+
+
+  const boardCount =
+    Math.min(
+      teamAPlayers.length,
+      teamBPlayers.length
+    );
+
 
   if (
-    teamAPlayers.length === 0
+    boardCount === 0
   ) {
     throw createError(
-      `${teamPairing.teamA.name} has no active players with board positions.`,
-      "NO_TEAM_PLAYERS"
+      "Both teams must have active players for board pairing.",
+      "NOT_ENOUGH_PLAYERS"
     );
   }
 
-  if (
-    teamBPlayers.length === 0
-  ) {
-    throw createError(
-      `${teamPairing.teamB.name} has no active players with board positions.`,
-      "NO_TEAM_PLAYERS"
+
+  console.log(
+    "🔥 GENERATING BOARD-TO-BOARD PAIRINGS"
+  );
+
+  console.log(
+    "Team Pairing:",
+    teamPairing.id
+  );
+
+  console.log(
+    "Boards:",
+    boardCount
+  );
+
+  console.log(
+    "Mode:",
+    teamPairing.mode
+  );
+
+
+  // ----------------------------------------------------
+  // SAVE BOARD PAIRINGS
+  // ----------------------------------------------------
+
+  const saved =
+    await prisma.$transaction(
+      async (tx) => {
+  
+        // ----------------------------------------------
+        // REMOVE OLD BOARD GAMES
+        // ----------------------------------------------
+  
+        await tx.teamGame.deleteMany({
+          where: {
+            teamPairingId: id,
+          },
+        });
+
+
+        // ----------------------------------------------
+        // CREATE BOARD GAMES
+        // ----------------------------------------------
+
+        const games = [];
+
+
+        for (
+          let index = 0;
+          index < boardCount;
+          index++
+        ) {
+
+          const playerA =
+            teamAPlayers[index];
+
+          const playerB =
+            teamBPlayers[index];
+
+
+          // Alternate colors by board.
+          // Board 1: Team A white
+          // Board 2: Team B white
+          // Board 3: Team A white
+          // etc.
+
+          const teamAIsWhite =
+            index % 2 === 0;
+
+
+          games.push({
+            teamPairingId: id,
+            boardPosition: index + 1,
+            whitePlayerId: teamAIsWhite ? playerA.id : playerB.id,
+            blackPlayerId: teamAIsWhite ? playerB.id : playerA.id,
+            result: 0,
+          });
+
+        }
+
+
+        await tx.teamGame.createMany({
+          data:
+            games,
+        });
+
+
+        // ----------------------------------------------
+        // READ SAVED BOARD GAMES
+        // ----------------------------------------------
+
+        const savedGames =
+          await tx.teamGame.findMany({
+
+            where: {
+              teamPairingId:
+                id,
+            },
+
+            include: {
+              whitePlayer: true,
+              blackPlayer: true,
+            },
+
+            orderBy: {
+              boardPosition:
+                "asc",
+            },
+
+          });
+
+
+        return savedGames;
+
+      }
     );
-  }
 
-  const teamBByBoard =
-    new Map();
 
-  for (
-    const membership of teamBPlayers
-  ) {
-    const board =
-      Number(
-        membership.boardPosition
-      );
+  console.log(
+    `🔥 BOARD PAIRINGS SAVED: ${saved.length}`
+  );
 
-    teamBByBoard.set(
-      board,
-      membership.player
-    );
-  }
-
-  const games = [];
-
-  for (
-    const membership of teamAPlayers
-  ) {
-    const board =
-      Number(
-        membership.boardPosition
-      );
-
-    const playerB =
-      teamBByBoard.get(
-        board
-      );
-
-    if (!playerB) {
-      continue;
-    }
-
-    games.push({
-      teamPairingId,
-
-      boardPosition:
-        board,
-
-      whitePlayerId:
-        membership.player.id,
-
-      blackPlayerId:
-        playerB.id,
-
-      result: 0,
-    });
-  }
-
-  if (games.length === 0) {
-    throw createError(
-      "No matching board positions found between the selected teams.",
-      "NO_BOARD_MATCHES"
-    );
-  }
-
-  const existingBoards =
-    new Set(
-      teamPairing.games.map(
-        (game) =>
-          Number(
-            game.boardPosition
-          )
-      )
-    );
-
-  const newGames =
-    games.filter(
-      (game) =>
-        !existingBoards.has(
-          Number(
-            game.boardPosition
-          )
-        )
-    );
-
-  if (
-    newGames.length === 0
-  ) {
-    throw createError(
-      "Team board pairings already exist.",
-      "BOARDS_ALREADY_EXIST"
-    );
-  }
-
-  const created =
-    await prisma.teamGame.createMany({
-      data: newGames,
-    });
 
   return {
-    teamPairingId,
-
-    tournamentId:
-      teamPairing.tournamentId,
-
-    round:
-      teamPairing.round,
+    teamPairingId:
+      teamPairing.id,
 
     teamA: {
       id:
@@ -1766,108 +1971,176 @@ async function generateTeamTablePairings({
         teamPairing.teamB.name,
     },
 
-    count:
-      created.count,
+    round:
+      teamPairing.round,
+
+    mode:
+      teamPairing.mode,
+
+    availableAt:
+      teamPairing.availableAt,
+
+    boardCount:
+      saved.length,
+
+    games:
+      saved,
   };
 }
 
 
 // ======================================================
-// GET TEAM BOARD PAIRINGS
+// GET TEAM PAIRINGS
 // ======================================================
 
-async function getTeamTablePairings({
-  teamPairingId,
+async function getTeamPairings({
+  teamId,
+  round,
+  mode,
 }) {
-  teamPairingId =
-    validateId(
-      teamPairingId,
-      "team pairing ID"
-    );
 
-  const teamPairing =
-    await prisma.teamPairing.findUnique({
-      where: {
-        id:
-          teamPairingId,
+  const where = {};
+
+
+  // ----------------------------------------------------
+  // OPTIONAL TEAM
+  // ----------------------------------------------------
+
+  if (
+    teamId !== undefined &&
+    teamId !== null &&
+    teamId !== ""
+  ) {
+
+    const cleanTeamId =
+      validateTeamId(
+        teamId,
+        "Team ID"
+      );
+
+
+    where.OR = [
+      {
+        teamAId:
+          cleanTeamId,
       },
 
-      include: {
-        teamA: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
+      {
+        teamBId:
+          cleanTeamId,
+      },
+    ];
 
-        teamB: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
+  }
+
+
+  // ----------------------------------------------------
+  // OPTIONAL ROUND
+  // ----------------------------------------------------
+
+  if (
+    round !== undefined &&
+    round !== null &&
+    round !== ""
+  ) {
+
+    where.round =
+      validateRound(
+        round
+      );
+
+  }
+
+
+  // ----------------------------------------------------
+  // OPTIONAL MODE
+  // ----------------------------------------------------
+
+  if (
+    mode !== undefined &&
+    mode !== null &&
+    String(mode).trim() !== ""
+  ) {
+
+    where.mode =
+      validateRequiredTeamMode(
+        mode
+      );
+
+  }
+
+
+  console.log(
+    "🔥 GET TEAM PAIRINGS:",
+    where
+  );
+
+
+  const pairings =
+    await prisma.teamPairing.findMany({
+
+      where,
+
+      include: {
+
+        teamA: true,
+
+        teamB: true,
 
         games: {
-          include: {
-            whitePlayer: {
-              select: {
-                id: true,
-                fullName: true,
-                username: true,
-                category: true,
-                status: true,
-              },
-            },
 
-            blackPlayer: {
-              select: {
-                id: true,
-                fullName: true,
-                username: true,
-                category: true,
-                status: true,
-              },
-            },
+          include: {
+
+            whitePlayer: true,
+
+            blackPlayer: true,
+
           },
 
           orderBy: {
             boardPosition:
               "asc",
           },
+
         },
+
       },
+
+      orderBy: [
+
+        {
+          round:
+            "asc",
+        },
+
+        {
+          id:
+            "asc",
+        },
+
+      ],
+
     });
 
-  if (!teamPairing) {
-    throw createError(
-      "Team pairing not found.",
-      "TEAM_PAIRING_NOT_FOUND"
-    );
-  }
 
   return {
-    teamPairingId,
-
-    tournamentId:
-      teamPairing.tournamentId,
+    teamId:
+      teamId ?? null,
 
     round:
-      teamPairing.round,
+      round ?? null,
 
-    teamA:
-      teamPairing.teamA,
-
-    teamB:
-      teamPairing.teamB,
-
-    availableAt:
-      teamPairing.availableAt,
-
-    games:
-      teamPairing.games,
+    mode:
+      mode
+        ? String(mode)
+            .trim()
+            .toUpperCase()
+        : null,
 
     count:
-      teamPairing.games.length,
+      pairings.length,
+
+    pairings,
   };
 }
 
@@ -1877,94 +2150,182 @@ async function getTeamTablePairings({
 // ======================================================
 
 async function deleteTeamPairings({
-  tournamentId,
+  teamId,
   round,
+  mode,
 }) {
-  tournamentId = validateId(
-    tournamentId,
-    "tournament ID"
-  );
 
-  round =
-    validateRound(round);
+  const where = {};
 
-  await getTournament(
-    tournamentId
-  );
 
-  const pairings =
-    await prisma.teamPairing.findMany({
-      where: {
-        tournamentId,
-        round,
-      },
-
-      select: {
-        id: true,
-      },
-    });
+  // ----------------------------------------------------
+  // TEAM
+  // ----------------------------------------------------
 
   if (
-    pairings.length === 0
+    teamId !== undefined &&
+    teamId !== null &&
+    teamId !== ""
   ) {
-    throw createError(
-      `No team pairings found for Round ${round}.`,
-      "PAIRINGS_NOT_FOUND"
-    );
+
+    const cleanTeamId =
+      validateTeamId(
+        teamId,
+        "Team ID"
+      );
+
+
+    where.OR = [
+      {
+        teamAId:
+          cleanTeamId,
+      },
+
+      {
+        teamBId:
+          cleanTeamId,
+      },
+    ];
+
   }
 
-  const pairingIds =
-    pairings.map(
-      (pairing) =>
-        pairing.id
-    );
 
-  const existingGames =
-    await prisma.teamGame.findFirst({
-      where: {
-        teamPairingId: {
-          in:
-            pairingIds,
-        },
-      },
+  // ----------------------------------------------------
+  // ROUND
+  // ----------------------------------------------------
+
+  if (
+    round !== undefined &&
+    round !== null &&
+    round !== ""
+  ) {
+
+    where.round =
+      validateRound(
+        round
+      );
+
+  }
+
+
+  // ----------------------------------------------------
+  // MODE
+  // ----------------------------------------------------
+
+  if (
+    mode !== undefined &&
+    mode !== null &&
+    String(mode).trim() !== ""
+  ) {
+
+    where.mode =
+      validateRequiredTeamMode(
+        mode
+      );
+
+  }
+
+
+  console.log(
+    "🔥 DELETE TEAM PAIRINGS:",
+    where
+  );
+
+
+  // ----------------------------------------------------
+  // FIND EXISTING
+  // ----------------------------------------------------
+
+  const existing =
+    await prisma.teamPairing.findMany({
+
+      where,
 
       select: {
         id: true,
       },
+
     });
 
-  if (existingGames) {
+
+  if (
+    existing.length === 0
+  ) {
     throw createError(
-      `Team pairings for Round ${round} cannot be deleted because board games already exist.`,
-      "PAIRINGS_LOCKED"
+      "No team pairings found.",
+      "TEAM_PAIRINGS_NOT_FOUND"
     );
   }
 
+
+  const ids =
+    existing.map(
+      (item) =>
+        item.id
+    );
+
+
+  // ----------------------------------------------------
+  // DELETE IN TRANSACTION
+  // ----------------------------------------------------
+
   const deleted =
-    await prisma.teamPairing.deleteMany({
-      where: {
-        tournamentId,
-        round,
-      },
-    });
+    await prisma.$transaction(
+      async (tx) => {
+
+        // Delete board games first.
+        await tx.teamGame.deleteMany({
+          where: {
+            teamPairingId: {
+              in:
+                ids,
+            },
+          },
+        });
+
+
+        // Then delete team pairings.
+        const result =
+          await tx.teamPairing.deleteMany({
+            where: {
+              id: {
+                in:
+                  ids,
+              },
+            },
+          });
+
+
+        return result;
+
+      }
+    );
+
+
+  console.log(
+    `🔥 TEAM PAIRINGS DELETED: ${deleted.count}`
+  );
+
 
   return {
-    tournamentId,
+    teamId:
+      teamId ?? null,
 
-    round,
+    round:
+      round ?? null,
+
+    mode:
+      mode
+        ? String(mode)
+            .trim()
+            .toUpperCase()
+        : null,
 
     deleted:
       deleted.count,
   };
 }
 
-
-async function generateSpecialPairings() {
-  throw createError(
-    "Special pairing generation requires the actual Special-player Prisma model.",
-    "SPECIAL_SCHEMA_REQUIRED"
-  );
-}
 
 
 // ======================================================
@@ -1973,14 +2334,12 @@ async function generateSpecialPairings() {
 
 module.exports = {
   getAvailableCategories,
-  getAvailableTeams,
+  getPairingPlayers,
   generatePairings,
   getPairings,
   deletePairings,
   generateTeamPairings,
+  generateBoardPairings,
   getTeamPairings,
-  generateTeamTablePairings,
-  getTeamTablePairings,
   deleteTeamPairings,
-  generateSpecialPairings,
 };
