@@ -85,6 +85,82 @@ router.get(
   }
 );
 
+router.post(
+  "/:tournamentId/players",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const { tournamentId } = req.params;
+      const { playerId } = req.body;
+
+      const participant =
+        await specialTournamentService
+          .addPlayerToSpecialTournament(
+            tournamentId,
+            playerId
+          );
+
+      return res.status(201).json({
+        success: true,
+        message:
+          "Player added to special tournament.",
+        participant,
+      });
+
+    } catch (error) {
+      console.error(
+        "[SPECIAL TOURNAMENT ADD PLAYER ERROR]",
+        error
+      );
+
+      return res.status(
+        error.statusCode || 500
+      ).json({
+        success: false,
+        message:
+          error.message ||
+          "Failed to add player to special tournament.",
+      });
+    }
+  }
+);
+
+router.delete(
+  "/:tournamentId/players/:playerId",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const {
+        tournamentId,
+        playerId,
+      } = req.params;
+
+      const result =
+        await specialTournamentService
+          .removePlayerFromSpecialTournament(
+            tournamentId,
+            playerId
+          );
+
+      return res.json(result);
+
+    } catch (error) {
+      console.error(
+        "[SPECIAL TOURNAMENT REMOVE PLAYER ERROR]",
+        error
+      );
+
+      return res.status(
+        error.statusCode || 500
+      ).json({
+        success: false,
+        message:
+          error.message ||
+          "Failed to remove player from special tournament.",
+      });
+    }
+  }
+);
 
 router.get(
   "/:tournamentId",
@@ -341,5 +417,34 @@ router.get("/", async (req, res) => {
     });
   }
 });
+
+router.delete(
+  "/:tournamentId",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const tournament =
+        await specialTournamentService.deleteSpecialTournament(
+          req.params.tournamentId
+        );
+
+      return res.status(200).json(tournament);
+    } catch (error) {
+      console.error(
+        "DELETE SPECIAL TOURNAMENT ERROR:",
+        error
+      );
+
+      return res.status(
+        error.statusCode || 500
+      ).json({
+        success: false,
+        message:
+          error.message ||
+          "Failed to delete special tournament.",
+      });
+    }
+  }
+);
 
 module.exports = router;

@@ -90,9 +90,9 @@ const teamListInclude = {
     where: {
       status: "ACTIVE",
     },
-
+  
     orderBy: {
-      fullName: "asc",
+      teamBoardPosition: "asc",
     },
 
     select: {
@@ -211,6 +211,7 @@ async function createTeam({
 
         data: {
           teamId: team.id,
+          teamBoardPosition: 1,
         },
       });
 
@@ -444,6 +445,7 @@ async function deleteTeam(teamId) {
 
       data: {
         teamId: null,
+        teamBoardPosition: null,
       },
     });
 
@@ -589,13 +591,31 @@ async function addPlayerToTeam(teamId, username) {
     }
 
     // Update player's current team
+    const lastPlayer = await tx.player.findFirst({
+      where: {
+        teamId,
+      },
+    
+      orderBy: {
+        teamBoardPosition: "desc",
+      },
+    
+      select: {
+        teamBoardPosition: true,
+      },
+    });
+    
+    const nextBoardPosition =
+      (lastPlayer?.teamBoardPosition || 0) + 1;
+    
     await tx.player.update({
       where: {
         id: player.id,
       },
-
+    
       data: {
         teamId,
+        teamBoardPosition: nextBoardPosition,
       },
     });
 
@@ -705,6 +725,7 @@ async function removePlayerFromTeam(teamId, playerId) {
 
       data: {
         teamId: null,
+        teamBoardPosition: null,
       },
     });
 
@@ -945,6 +966,100 @@ async function getPlayerTeam(playerId) {
   return getTeamById(player.teamId);
 }
 
+async function shuffleTeamPlayers(teamId, captainId) {
+  teamId = validateId(teamId, "team ID");
+  captainId = validateId(captainId, "captain ID");
+
+  const team = await prisma.team.findUnique({
+    where: {
+      id: teamId,
+    },
+
+    select: {
+      id: true,
+      name: true,
+      captainId: true,
+    },
+  });
+
+  if (!team) {
+    const error = new Error("Team not found.");
+    error.code = "TEAM_NOT_FOUND";
+    throw error;
+  }
+
+  if (team.captainId !== captainId) {
+    const error = new Error(
+      "Only the team captain can shuffle the team."
+    );
+
+    error.code = "NOT_TEAM_CAPTAIN";
+
+    throw error;
+  }
+
+  const players = await prisma.player.findMany({
+    where: {
+      teamId,
+      status: "ACTIVE",
+    },
+
+    select: {
+      id: true,
+      fullName: true,
+      username: true,
+    },
+
+    orderBy: {
+      id: "asc",
+    },
+  });
+
+  if (players.length < 2) {
+    const error = new Error(
+      "At least two active players are required to shuffle the team."
+    );
+
+    error.code = "NOT_ENOUGH_PLAYERS";
+
+    throw error;
+  }
+
+  // Fisher-Yates shuffle
+  const shuffledPlayers = [...players];
+
+  for (
+    let i = shuffledPlayers.length - 1;
+    i > 0;
+    i--
+  ) {
+    const j = Math.floor(Math.random() * (i + 1));
+
+    [
+      shuffledPlayers[i],
+      shuffledPlayers[j],
+    ] = [
+      shuffledPlayers[j],
+      shuffledPlayers[i],
+    ];
+  }
+
+  await prisma.$transaction(
+    shuffledPlayers.map((player, index) =>
+      prisma.player.update({
+        where: {
+          id: player.id,
+        },
+
+        data: {
+          teamBoardPosition: index + 1,
+        },
+      })
+    )
+  );
+
+  return getTeamById(teamId);
+}
 
 module.exports = {
   createTeam,
@@ -956,8 +1071,8 @@ module.exports = {
   addPlayerToTeam,
   removePlayerFromTeam,
   appointCaptain,
+  shuffleTeamPlayers,
 
   getTeamMemberships,
   getPlayerTeam,
-
 };

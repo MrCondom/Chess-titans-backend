@@ -7,9 +7,11 @@ const teamsRoutes = require("./routes/teams");
 const pairingsRoutes = require("./routes/pairings");
 const adminRoutes = require("./routes/admin");
 const authRoutes = require("./routes/auth");
-const resultRoutes = require("./routes/results");
+const resultRouter = require("./routes/result");
 const rankingsRoutes = require("./routes/rankings");
 const tournamentRoutes = require("./routes/tournaments");
+const ratingRoutes = require("./routes/ratings");
+const tournamentStandingsRoutes = require("./routes/tournamentStandings");
 
 
 dotenv.config();
@@ -30,9 +32,11 @@ app.use("/teams", teamsRoutes);
 app.use("/pairings", pairingsRoutes);
 app.use("/admin", adminRoutes)
 app.use("/auth", authRoutes)
-app.use("/results", resultRoutes)
+app.use("/results", resultRouter)
 app.use("/rankings", rankingsRoutes)
+app.use("/", ratingRoutes);
 app.use("/tournaments/special", tournamentRoutes);
+app.use("/api", tournamentStandingsRoutes);
 
 
 

@@ -389,6 +389,184 @@ async function leaveSpecialTournament(tournamentId, playerId) {
   };
 }
 
+
+/**
+ * Admin adds an ACTIVE player to a special tournament.
+ *
+ * Players can only be added while the tournament is DRAFT.
+ */
+async function addPlayerToSpecialTournament(
+  tournamentId,
+  playerId
+) {
+  const tournamentIdNumber =
+    validateTournamentId(tournamentId);
+
+  const playerIdNumber =
+    validatePlayerId(playerId);
+
+  const tournament =
+    await prisma.tournament.findFirst({
+      where: {
+        id: tournamentIdNumber,
+        type: SPECIAL_TOURNAMENT_TYPE,
+      },
+    });
+
+  if (!tournament) {
+    throw createError(
+      "Special tournament not found.",
+      404
+    );
+  }
+
+  // Players are locked once pairings have been generated.
+  if (tournament.status !== "DRAFT") {
+    throw createError(
+      "Players can only be added while the tournament is in DRAFT status."
+    );
+  }
+
+  const player =
+    await prisma.player.findUnique({
+      where: {
+        id: playerIdNumber,
+      },
+      select: {
+        id: true,
+        username: true,
+        fullName: true,
+        status: true,
+        category: true,
+        rapidRating: true,
+        blitzRating: true,
+        bulletRating: true,
+      },
+    });
+
+  if (!player) {
+    throw createError(
+      "Player not found.",
+      404
+    );
+  }
+
+  if (player.status !== "ACTIVE") {
+    throw createError(
+      "Only ACTIVE players can be added to a special tournament."
+    );
+  }
+
+  const existing =
+    await prisma.tournamentPlayer.findUnique({
+      where: {
+        tournamentId_playerId: {
+          tournamentId: tournamentIdNumber,
+          playerId: playerIdNumber,
+        },
+      },
+    });
+
+  if (existing) {
+    throw createError(
+      "Player is already participating in this tournament."
+    );
+  }
+
+  const participant =
+    await prisma.tournamentPlayer.create({
+      data: {
+        tournamentId: tournamentIdNumber,
+        playerId: playerIdNumber,
+      },
+      include: {
+        player: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+            status: true,
+            category: true,
+            rapidRating: true,
+            blitzRating: true,
+            bulletRating: true,
+          },
+        },
+      },
+    });
+
+  return participant;
+}
+
+
+/**
+ * Admin removes a player from a special tournament.
+ *
+ * Players can only be removed while the tournament is DRAFT.
+ */
+async function removePlayerFromSpecialTournament(
+  tournamentId,
+  playerId
+) {
+  const tournamentIdNumber =
+    validateTournamentId(tournamentId);
+
+  const playerIdNumber =
+    validatePlayerId(playerId);
+
+  const tournament =
+    await prisma.tournament.findFirst({
+      where: {
+        id: tournamentIdNumber,
+        type: SPECIAL_TOURNAMENT_TYPE,
+      },
+    });
+
+  if (!tournament) {
+    throw createError(
+      "Special tournament not found.",
+      404
+    );
+  }
+
+  // Once pairings exist, participants are locked.
+  if (tournament.status !== "DRAFT") {
+    throw createError(
+      "Players can only be removed while the tournament is in DRAFT status."
+    );
+  }
+
+  const participant =
+    await prisma.tournamentPlayer.findUnique({
+      where: {
+        tournamentId_playerId: {
+          tournamentId: tournamentIdNumber,
+          playerId: playerIdNumber,
+        },
+      },
+    });
+
+  if (!participant) {
+    throw createError(
+      "Player is not participating in this tournament.",
+      404
+    );
+  }
+
+  await prisma.tournamentPlayer.delete({
+    where: {
+      tournamentId_playerId: {
+        tournamentId: tournamentIdNumber,
+        playerId: playerIdNumber,
+      },
+    },
+  });
+
+  return {
+    success: true,
+    message: "Player removed from the special tournament.",
+  };
+}
 /**
  * Gets participants for one special tournament.
  */
@@ -859,6 +1037,70 @@ async function getAllSpecialTournaments() {
   });
 }
 
+async function deleteSpecialTournament(tournamentId) {
+  const id = validateTournamentId(tournamentId);
+
+  const tournament = await prisma.tournament.findFirst({
+    where: {
+      id,
+      type: SPECIAL_TOURNAMENT_TYPE,
+    },
+    select: {
+      id: true,
+      name: true,
+      status: true,
+    },
+  });
+
+  if (!tournament) {
+    throw createError(
+      "Special tournament not found.",
+      404
+    );
+  }
+
+ 
+  if (
+    tournament.status !== "DRAFT" &&
+    tournament.status !== "CANCELLED"
+  ) {
+    throw createError(
+      `A ${tournament.status.toLowerCase()} special tournament cannot be deleted.`
+    );
+  }
+
+  await prisma.$transaction(async (tx) => {
+    
+    await tx.pairing.deleteMany({
+      where: {
+        tournamentId: id,
+      },
+    });
+
+    await tx.tournamentPlayer.deleteMany({
+      where: {
+        tournamentId: id,
+      },
+    });
+
+    // ------------------------------------------------
+    // DELETE TOURNAMENT
+    // ------------------------------------------------
+
+    await tx.tournament.delete({
+      where: {
+        id,
+      },
+    });
+  });
+
+  return {
+    success: true,
+    message: `Special tournament "${tournament.name}" deleted successfully.`,
+    tournamentId: id,
+  };
+}
+
 module.exports = {
   createSpecialTournament,
   getAllSpecialTournaments,
@@ -867,7 +1109,10 @@ module.exports = {
   joinSpecialTournament,
   leaveSpecialTournament,
   getTournamentParticipants,
+  addPlayerToSpecialTournament,
+  removePlayerFromSpecialTournament,
   generateSpecialTournamentPairings,
   getSpecialTournamentPairings,
   deleteSpecialTournamentPairings,
+  deleteSpecialTournament,
 };

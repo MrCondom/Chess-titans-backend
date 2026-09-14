@@ -1,9 +1,5 @@
 const prisma = require("../lib/prisma");
 
-// ======================================================
-// CONSTANTS
-// ======================================================
-
 const MAX_ROUNDS = 200;
 const MAX_HOURS_PER_ROUND = 720;
 
@@ -19,20 +15,12 @@ const MODES = {
 };
 
 
-// ======================================================
-// ERROR HELPER
-// ======================================================
-
 function createError(message, code = "PAIRING_ERROR") {
   const error = new Error(message);
   error.code = code;
   return error;
 }
 
-
-// ======================================================
-// VALIDATION
-// ======================================================
 
 function validateRound(value) {
   const round = Number(value);
@@ -165,10 +153,6 @@ function validateDate(value, name = "date") {
 }
 
 
-// ======================================================
-// MODE VALIDATION
-// ======================================================
-
 function validateMode(mode) {
   if (
     mode === undefined ||
@@ -198,10 +182,6 @@ function validateMode(mode) {
 }
 
 
-// ======================================================
-// SHUFFLE
-// ======================================================
-
 function shuffle(array) {
   const result = [...array];
 
@@ -226,10 +206,6 @@ function shuffle(array) {
   return result;
 }
 
-
-// ======================================================
-// AVAILABLE CATEGORIES
-// ======================================================
 
 async function getAvailableCategories() {
   console.log(
@@ -367,11 +343,6 @@ async function getPairingPlayers(category) {
   return matchingPlayers;
 }
 
-
-// ======================================================
-// ROUND COUNT
-// ======================================================
-
 function calculateMaximumRounds({
   format,
   participantCount,
@@ -419,10 +390,6 @@ function resolveRounds({
   return rounds;
 }
 
-
-// ======================================================
-// ROUND ROBIN
-// ======================================================
 
 function getRoundRobinPairings(
   players,
@@ -497,11 +464,6 @@ function getRoundRobinPairings(
   return pairings;
 }
 
-
-// ======================================================
-// SWISS
-// ======================================================
-
 function getSwissPairings(
   players
 ) {
@@ -539,11 +501,6 @@ function getSwissPairings(
 
   return pairings;
 }
-
-
-// ======================================================
-// GENERATE ONE ROUND
-// ======================================================
 
 function generateIndividualRound({
   category,
@@ -632,10 +589,6 @@ async function generatePairings({
       "availableAt"
     );
 
-  // ----------------------------------------------------
-  // VALIDATE FORMAT
-  // ----------------------------------------------------
-
   const cleanFormat =
     String(format)
       .trim()
@@ -652,25 +605,13 @@ async function generatePairings({
     );
   }
 
-  // ----------------------------------------------------
-  // VALIDATE MODE
-  // ----------------------------------------------------
-
   const cleanMode =
     validateMode(mode);
-
-  // ----------------------------------------------------
-  // GET ACTIVE PLAYERS
-  // ----------------------------------------------------
 
   const players =
     await getPairingPlayers(
       cleanCategory
     );
-
-  // ----------------------------------------------------
-  // CALCULATE MAXIMUM ROUNDS
-  // ----------------------------------------------------
 
   const maximumRounds =
     calculateMaximumRounds({
@@ -680,10 +621,6 @@ async function generatePairings({
       participantCount:
         players.length,
     });
-
-  // ----------------------------------------------------
-  // RESOLVE TOTAL ROUNDS
-  // ----------------------------------------------------
 
   const totalRounds =
     resolveRounds({
@@ -725,10 +662,6 @@ async function generatePairings({
     "Hours per round:",
     intervalHours
   );
-
-  // ----------------------------------------------------
-  // GENERATE ALL ROUNDS
-  // ----------------------------------------------------
 
   const generatedRounds = [];
 
@@ -791,10 +724,6 @@ async function generatePairings({
     });
   }
 
-  // ----------------------------------------------------
-  // FLATTEN ALL PAIRINGS
-  // ----------------------------------------------------
-
   const allPairings =
     generatedRounds.flatMap(
       (round) =>
@@ -814,18 +743,9 @@ async function generatePairings({
     `🔥 TOTAL PAIRINGS TO SAVE: ${allPairings.length}`
   );
 
-  // ----------------------------------------------------
-  // SAVE EVERYTHING IN ONE TRANSACTION
-  // ----------------------------------------------------
-
   const savedPairings =
     await prisma.$transaction(
       async (tx) => {
-
-        // ----------------------------------------------
-        // REMOVE OLD PAIRINGS
-        // FOR THIS CATEGORY + MODE
-        // ----------------------------------------------
 
         const deleted =
           await tx.pairing.deleteMany({
@@ -841,10 +761,6 @@ async function generatePairings({
         console.log(
           `🔥 OLD ${cleanCategory} ${cleanMode} PAIRINGS REMOVED: ${deleted.count}`
         );
-
-        // ----------------------------------------------
-        // CREATE NEW PAIRINGS
-        // ----------------------------------------------
 
         await tx.pairing.createMany({
           data:
@@ -870,10 +786,6 @@ async function generatePairings({
               })
             ),
         });
-
-        // ----------------------------------------------
-        // READ SAVED PAIRINGS
-        // ----------------------------------------------
 
         const saved =
           await tx.pairing.findMany({
@@ -907,10 +819,6 @@ async function generatePairings({
       }
     );
 
-  // ----------------------------------------------------
-  // GROUP SAVED PAIRINGS BY ROUND
-  // ----------------------------------------------------
-
   const savedRounds = [];
 
   for (
@@ -942,10 +850,6 @@ async function generatePairings({
         roundPairings,
     });
   }
-
-  // ----------------------------------------------------
-  // FINAL RESPONSE
-  // ----------------------------------------------------
 
   console.log(
     `🔥 PAIRINGS SAVED SUCCESSFULLY: ${savedPairings.length}`
@@ -989,10 +893,6 @@ async function getPairings({
 }) {
   const where = {};
 
-  // ----------------------------------------------------
-  // ROUND
-  // ----------------------------------------------------
-
   if (
     round !== undefined &&
     round !== null &&
@@ -1004,10 +904,6 @@ async function getPairings({
       );
   }
 
-  // ----------------------------------------------------
-  // CATEGORY
-  // ----------------------------------------------------
-
   const cleanCategory =
     validateOptionalCategory(
       category
@@ -1017,10 +913,6 @@ async function getPairings({
     where.category =
       cleanCategory;
   }
-
-  // ----------------------------------------------------
-  // MODE
-  // ----------------------------------------------------
 
   const cleanMode =
     mode !== undefined &&
@@ -1038,10 +930,6 @@ async function getPairings({
     "🔥 GET PAIRINGS:",
     where
   );
-
-  // ----------------------------------------------------
-  // DATABASE QUERY
-  // ----------------------------------------------------
 
   const pairings =
     await prisma.pairing.findMany({
@@ -1094,10 +982,6 @@ async function deletePairings({
 }) {
   const where = {};
 
-  // ----------------------------------------------------
-  // ROUND
-  // ----------------------------------------------------
-
   if (
     round !== undefined &&
     round !== null &&
@@ -1109,10 +993,6 @@ async function deletePairings({
       );
   }
 
-  // ----------------------------------------------------
-  // CATEGORY
-  // ----------------------------------------------------
-
   const cleanCategory =
     validateOptionalCategory(
       category
@@ -1122,10 +1002,6 @@ async function deletePairings({
     where.category =
       cleanCategory;
   }
-
-  // ----------------------------------------------------
-  // MODE
-  // ----------------------------------------------------
 
   const cleanMode =
     mode !== undefined &&
@@ -1143,10 +1019,6 @@ async function deletePairings({
     "🔥 DELETE PAIRINGS:",
     where
   );
-
-  // ----------------------------------------------------
-  // CHECK EXISTING PAIRINGS
-  // ----------------------------------------------------
 
   const existing =
     await prisma.pairing.count({
@@ -1186,16 +1058,8 @@ async function deletePairings({
   };
 }
 
-// ======================================================
-// TEAM PAIRING CONSTANTS
-// ======================================================
 
 const TEAM_PAIRING_MAX_ROUNDS = 200;
-
-
-// ======================================================
-// TEAM ID VALIDATION
-// ======================================================
 
 function validateTeamId(value, name = "Team ID") {
   const id = Number(value);
@@ -1213,11 +1077,6 @@ function validateTeamId(value, name = "Team ID") {
   return id;
 }
 
-
-// ======================================================
-// TEAM MODE VALIDATION
-// MODE IS REQUIRED FOR TEAM PAIRINGS
-// ======================================================
 
 function validateRequiredTeamMode(mode) {
 
@@ -1250,11 +1109,6 @@ function validateRequiredTeamMode(mode) {
 
   return cleanMode;
 }
-
-
-// ======================================================
-// TEAM PAIRING ROUND VALIDATION
-// ======================================================
 
 function validateTeamRounds(value) {
 
@@ -1405,30 +1259,15 @@ async function generateTeamPairings({
     );
   }
 
-
-  // ----------------------------------------------------
-  // MODE IS REQUIRED
-  // ----------------------------------------------------
-
   const cleanMode =
     validateRequiredTeamMode(
       mode
     );
 
-
-  // ----------------------------------------------------
-  // ROUNDS
-  // ----------------------------------------------------
-
   const totalRounds =
     validateTeamRounds(
       rounds
     );
-
-
-  // ----------------------------------------------------
-  // TIME
-  // ----------------------------------------------------
 
   const intervalHours =
     validateHoursPerRound(
@@ -1442,10 +1281,6 @@ async function generateTeamPairings({
       "availableAt"
     );
 
-
-  // ----------------------------------------------------
-  // GET TEAMS
-  // ----------------------------------------------------
 
   const [
     teamA,
@@ -1464,10 +1299,6 @@ async function generateTeamPairings({
 
   ]);
 
-
-  // ----------------------------------------------------
-  // MAKE SURE BOTH TEAMS HAVE PLAYERS
-  // ----------------------------------------------------
 
   const [
     teamAPlayers,
@@ -1503,11 +1334,6 @@ async function generateTeamPairings({
       "TEAM_B_NO_PLAYERS"
     );
   }
-
-
-  // ----------------------------------------------------
-  // NUMBER OF BOARDS
-  // ----------------------------------------------------
 
   const boardCount =
     Math.min(
@@ -1557,19 +1383,9 @@ async function generateTeamPairings({
     boardCount
   );
 
-
-  // ----------------------------------------------------
-  // SAVE EVERYTHING IN TRANSACTION
-  // ----------------------------------------------------
-
   const saved =
     await prisma.$transaction(
       async (tx) => {
-
-        // ----------------------------------------------
-        // REMOVE OLD TEAM PAIRINGS
-        // SAME TEAMS + SAME MODE
-        // ----------------------------------------------
 
         const existing =
           await tx.teamPairing.findMany({
@@ -1633,11 +1449,6 @@ async function generateTeamPairings({
           });
 
         }
-
-
-        // ----------------------------------------------
-        // CREATE TEAM PAIRINGS
-        // ----------------------------------------------
 
         const createdTeamPairings =
           [];
@@ -1791,11 +1602,6 @@ async function generateBoardPairings({
     );
   }
 
-
-  // ----------------------------------------------------
-  // GET ACTIVE PLAYERS
-  // ----------------------------------------------------
-
   const [
     teamAPlayers,
     teamBPlayers,
@@ -1848,29 +1654,15 @@ async function generateBoardPairings({
     teamPairing.mode
   );
 
-
-  // ----------------------------------------------------
-  // SAVE BOARD PAIRINGS
-  // ----------------------------------------------------
-
   const saved =
     await prisma.$transaction(
       async (tx) => {
-  
-        // ----------------------------------------------
-        // REMOVE OLD BOARD GAMES
-        // ----------------------------------------------
   
         await tx.teamGame.deleteMany({
           where: {
             teamPairingId: id,
           },
         });
-
-
-        // ----------------------------------------------
-        // CREATE BOARD GAMES
-        // ----------------------------------------------
 
         const games = [];
 
@@ -1887,13 +1679,6 @@ async function generateBoardPairings({
           const playerB =
             teamBPlayers[index];
 
-
-          // Alternate colors by board.
-          // Board 1: Team A white
-          // Board 2: Team B white
-          // Board 3: Team A white
-          // etc.
-
           const teamAIsWhite =
             index % 2 === 0;
 
@@ -1901,9 +1686,13 @@ async function generateBoardPairings({
           games.push({
             teamPairingId: id,
             boardPosition: index + 1,
-            whitePlayerId: teamAIsWhite ? playerA.id : playerB.id,
-            blackPlayerId: teamAIsWhite ? playerB.id : playerA.id,
-            result: 0,
+            whitePlayerId: teamAIsWhite
+              ? playerA.id
+              : playerB.id,
+            blackPlayerId: teamAIsWhite
+              ? playerB.id
+              : playerA.id,
+            result: null,
           });
 
         }
@@ -1914,10 +1703,6 @@ async function generateBoardPairings({
             games,
         });
 
-
-        // ----------------------------------------------
-        // READ SAVED BOARD GAMES
-        // ----------------------------------------------
 
         const savedGames =
           await tx.teamGame.findMany({
@@ -2001,11 +1786,6 @@ async function getTeamPairings({
 
   const where = {};
 
-
-  // ----------------------------------------------------
-  // OPTIONAL TEAM
-  // ----------------------------------------------------
-
   if (
     teamId !== undefined &&
     teamId !== null &&
@@ -2033,11 +1813,6 @@ async function getTeamPairings({
 
   }
 
-
-  // ----------------------------------------------------
-  // OPTIONAL ROUND
-  // ----------------------------------------------------
-
   if (
     round !== undefined &&
     round !== null &&
@@ -2050,11 +1825,6 @@ async function getTeamPairings({
       );
 
   }
-
-
-  // ----------------------------------------------------
-  // OPTIONAL MODE
-  // ----------------------------------------------------
 
   if (
     mode !== undefined &&
@@ -2157,11 +1927,6 @@ async function deleteTeamPairings({
 
   const where = {};
 
-
-  // ----------------------------------------------------
-  // TEAM
-  // ----------------------------------------------------
-
   if (
     teamId !== undefined &&
     teamId !== null &&
@@ -2189,11 +1954,6 @@ async function deleteTeamPairings({
 
   }
 
-
-  // ----------------------------------------------------
-  // ROUND
-  // ----------------------------------------------------
-
   if (
     round !== undefined &&
     round !== null &&
@@ -2206,11 +1966,6 @@ async function deleteTeamPairings({
       );
 
   }
-
-
-  // ----------------------------------------------------
-  // MODE
-  // ----------------------------------------------------
 
   if (
     mode !== undefined &&
@@ -2230,11 +1985,6 @@ async function deleteTeamPairings({
     "🔥 DELETE TEAM PAIRINGS:",
     where
   );
-
-
-  // ----------------------------------------------------
-  // FIND EXISTING
-  // ----------------------------------------------------
 
   const existing =
     await prisma.teamPairing.findMany({
@@ -2263,11 +2013,6 @@ async function deleteTeamPairings({
       (item) =>
         item.id
     );
-
-
-  // ----------------------------------------------------
-  // DELETE IN TRANSACTION
-  // ----------------------------------------------------
 
   const deleted =
     await prisma.$transaction(

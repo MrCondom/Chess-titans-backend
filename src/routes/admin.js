@@ -4,6 +4,7 @@ const router = express.Router();
 const prisma = require("../lib/prisma");
 const { adminAuth } = require("../middleware/adminAuth");
 const approvalService = require("../services/approvalService");
+const {applyPlayerStatistics, applyTeamStatistics} = require("../services/statisticService");
 const ratingService = require("../services/ratingService");
 
 const bcrypt = require("bcryptjs");
@@ -923,8 +924,13 @@ router.get(
   }
 );
 
+// =====================================================
+// GAME RESULT APPROVAL
+// Normal + Special
+// =====================================================
+
 router.post(
-  "/results/:id/approve",
+  "/results/game/:id/approve",
   adminAuth,
   async (req, res) => {
     try {
@@ -936,12 +942,12 @@ router.post(
       return res.json({
         success: true,
         message:
-          "Result approved and ratings updated successfully.",
+          "Game result approved and ratings updated successfully.",
         result,
       });
     } catch (error) {
       console.error(
-        "APPROVE RESULT ERROR:",
+        "APPROVE GAME RESULT ERROR:",
         error
       );
 
@@ -950,21 +956,24 @@ router.post(
         message: error.message,
         code:
           error.code ||
-          "RESULT_APPROVAL_ERROR",
+          "GAME_RESULT_APPROVAL_ERROR",
       });
     }
   }
 );
 
 
+// =====================================================
+// GAME RESULT REJECTION
+// Normal + Special
+// =====================================================
+
 router.post(
-  "/results/:id/reject",
+  "/results/game/:id/reject",
   adminAuth,
   async (req, res) => {
     try {
-      const {
-        reason,
-      } = req.body;
+      const { reason } = req.body;
 
       const result =
         await ratingService.rejectResult(
@@ -975,12 +984,12 @@ router.post(
       return res.json({
         success: true,
         message:
-          "Result rejected successfully.",
+          "Game result rejected successfully.",
         result,
       });
     } catch (error) {
       console.error(
-        "REJECT RESULT ERROR:",
+        "REJECT GAME RESULT ERROR:",
         error
       );
 
@@ -989,7 +998,86 @@ router.post(
         message: error.message,
         code:
           error.code ||
-          "RESULT_REJECTION_ERROR",
+          "GAME_RESULT_REJECTION_ERROR",
+      });
+    }
+  }
+);
+
+
+// =====================================================
+// TEAM GAME APPROVAL
+// =====================================================
+
+router.post(
+  "/results/team/:id/approve",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const result =
+        await ratingService.approveTeamGame(
+          req.params.id
+        );
+
+      return res.json({
+        success: true,
+        message:
+          "Team game approved successfully.",
+        result,
+      });
+    } catch (error) {
+      console.error(
+        "APPROVE TEAM GAME ERROR:",
+        error
+      );
+
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+        code:
+          error.code ||
+          "TEAM_GAME_APPROVAL_ERROR",
+      });
+    }
+  }
+);
+
+
+// =====================================================
+// TEAM GAME REJECTION
+// =====================================================
+
+router.post(
+  "/results/team/:id/reject",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const { reason } = req.body;
+
+      const result =
+        await ratingService.rejectTeamGame(
+          req.params.id,
+          reason
+        );
+
+      return res.json({
+        success: true,
+        message:
+          "Team game rejected successfully.",
+        result,
+      });
+    } catch (error) {
+      console.error(
+        "REJECT TEAM GAME ERROR:",
+        error
+      );
+
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+        code:
+          error.code ||
+          "TEAM_GAME_REJECTION_ERROR",
       });
     }
   }
@@ -1235,6 +1323,62 @@ router.get(
         success: false,
         message:
           "Failed to retrieve players.",
+      });
+    }
+  }
+);
+
+router.post(
+  "/apply-statistics",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const result =
+        await applyPlayerStatistics();
+
+      return res.json(result);
+    } catch (error) {
+      console.error(
+        "Apply player statistics error:",
+        error
+      );
+
+      return res.status(
+        error.statusCode || 500
+      ).json({
+        message:
+          error.message ||
+          "Failed to apply player statistics.",
+      });
+    }
+  }
+);
+
+router.post(
+  "/apply-team-statistics",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const result =
+        await applyTeamStatistics();
+
+      return res.json(result);
+    } catch (error) {
+      console.error(
+        "APPLY TEAM STATISTICS ERROR:",
+        error
+      );
+
+      return res.status(
+        error.statusCode || 500
+      ).json({
+        success: false,
+        message:
+          error.message ||
+          "Failed to apply team statistics.",
+        code:
+          error.code ||
+          "APPLY_TEAM_STATISTICS_FAILED",
       });
     }
   }

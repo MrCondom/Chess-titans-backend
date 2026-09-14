@@ -108,6 +108,8 @@ model Player {
 
   tournamentWins Int @default(0)
 
+  teamBoardPosition Int?
+
   teamId Int?
   team   Team? @relation("PlayerTeam", fields: [teamId], references: [id], onDelete: SetNull)
 
@@ -235,6 +237,10 @@ model TeamPairing {
 
   round Int
 
+  tournamentId Int?
+
+  tournament Tournament? @relation(fields: [tournamentId],references: [id],onDelete: SetNull)
+
   teamAId Int
   teamBId Int
 
@@ -242,9 +248,9 @@ model TeamPairing {
 
   mode TeamPairingMode
 
-  teamA Team @relation("TeamA", fields: [teamAId], references: [id], onDelete: Cascade)
+  teamA Team @relation("TeamA",fields: [teamAId],references: [id],onDelete: Cascade)
 
-  teamB Team @relation("TeamB", fields: [teamBId], references: [id], onDelete: Cascade)
+  teamB Team @relation("TeamB",fields: [teamBId],references: [id],onDelete: Cascade )
 
   availableAt DateTime
 
@@ -255,7 +261,7 @@ model TeamPairing {
   @@index([teamAId])
   @@index([teamBId])
   @@index([mode])
-  @@index([availableAt])
+  @@index([tournamentId])
 }
 
 model TeamGame {
@@ -267,8 +273,12 @@ model TeamGame {
   whitePlayerId Int
   blackPlayerId Int
 
-  result Int
-  approvalStatus ApprovalStatus @default(PENDING)
+  result Float
+
+  approvalStatus    ApprovalStatus @default(PENDING)
+  approvedByAdminId Int?
+  approvedAt        DateTime?
+  rejectionReason   String?
 
   teamPairing TeamPairing @relation(fields: [teamPairingId], references: [id], onDelete: Cascade)
 
@@ -276,10 +286,16 @@ model TeamGame {
 
   blackPlayer Player @relation("TeamGameBlack", fields: [blackPlayerId], references: [id], onDelete: Cascade)
 
+  ratingGains RatingGain[]
+
+  playerStatisticsApplied Boolean @default(false)
+  teamStatisticsApplied Boolean @default(false)
+  
   @@unique([teamPairingId, boardPosition])
   @@index([teamPairingId])
   @@index([whitePlayerId])
   @@index([blackPlayerId])
+  @@index([approvalStatus])
 }
 
 model GameResult {
@@ -311,6 +327,8 @@ model GameResult {
 
   approvedAt DateTime?
 
+  playerStatisticsApplied Boolean @default(false)
+  
   rejectionReason String?
 
   pairingId Int? @unique
@@ -335,16 +353,21 @@ model RatingGain {
 
   player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
+  // Normal GameResult rating gain
   pairingId Int?
 
   pairing Pairing? @relation(fields: [pairingId], references: [id], onDelete: SetNull)
 
+  // TeamGame rating gain
+  teamGameId Int?
+
+  teamGame TeamGame? @relation(fields: [teamGameId], references: [id], onDelete: SetNull)
+
   approvalStatus ApprovalStatus @default(PENDING)
-  approvedAt     DateTime?
 
+  approvedAt        DateTime?
   approvedByAdminId Int?
-
-  appliedAt DateTime?
+  appliedAt         DateTime?
 
   tournamentId Int?
 
@@ -360,6 +383,7 @@ model RatingGain {
 
   @@index([playerId])
   @@index([pairingId])
+  @@index([teamGameId])
   @@index([mode])
   @@index([createdAt])
 }
@@ -381,7 +405,7 @@ model PlayerRanking {
   totalPoints Float @default(0)
   totalRounds Int   @default(0)
 
-  accuracy Float @default(0)
+  tieBreaker Float @default(0)
 
   tournamentId Int?
 
@@ -415,6 +439,14 @@ model TeamRanking {
   totalPoints Float @default(0)
   totalRating Int   @default(0)
 
+  totalRounds Int @default(0)
+
+  wins   Int @default(0)
+  draws  Int @default(0)
+  losses Int @default(0)
+
+  tieBreaker Float @default(0)
+
   month Int?
   year  Int?
 
@@ -425,14 +457,12 @@ model TeamRanking {
   createdAt DateTime @default(now())
 
   @@unique([tournamentId, teamId])
-
   @@index([teamId])
   @@index([rank])
   @@index([category])
   @@index([tournamentId])
   @@index([year, month])
 }
-
 
 model Tournament {
   id Int @id @default(autoincrement())
@@ -448,8 +478,8 @@ model Tournament {
 
   status TournamentStatus @default(DRAFT)
 
-  totalRounds Int @default(1)
-  currentRound Int @default(0)
+  totalRounds          Int @default(1)
+  currentRound         Int @default(0)
   roundDurationMinutes Int @default(0)
 
   championPlayerId Int?
@@ -457,10 +487,14 @@ model Tournament {
 
   championUsername String?
 
-  pairings     Pairing[]
-  players      TournamentPlayer[]
+  pairings Pairing[]
+  players  TournamentPlayer[]
 
+  teamPairings TeamPairing[]
   championTitle String?
+
+  statisticsApplied   Boolean   @default(false)
+  statisticsAppliedAt DateTime?
 
   startedAt   DateTime?
   completedAt DateTime?
@@ -506,16 +540,18 @@ model TournamentResult {
   playerId     Int
 
   tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-
   player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
   rank Int
 
   totalPoints Float @default(0)
-
   totalRounds Int @default(0)
 
-  accuracy Float @default(0)
+  wins   Int @default(0)
+  draws  Int @default(0)
+  losses Int @default(0)
+
+  tieBreaker Float @default(0)
 
   ratingBefore Int @default(0)
   ratingAfter  Int @default(0)

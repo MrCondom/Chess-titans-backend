@@ -69,6 +69,53 @@ router.get(
   }
 );
 
+router.post(
+  "/:teamId/shuffle",
+  playerAuth,
+  async (req, res) => {
+    try {
+      const team =
+        await teamService.shuffleTeamPlayers(
+          req.params.teamId,
+          req.player.id
+        );
+
+      return res.json({
+        success: true,
+        message: "Team players shuffled successfully.",
+        team,
+      });
+    } catch (error) {
+      console.error(
+        "SHUFFLE TEAM PLAYERS ERROR:",
+        error
+      );
+
+      let status = 400;
+
+      if (error.code === "TEAM_NOT_FOUND") {
+        status = 404;
+      }
+
+      if (error.code === "NOT_TEAM_CAPTAIN") {
+        status = 403;
+      }
+
+      if (error.code === "NOT_ENOUGH_PLAYERS") {
+        status = 400;
+      }
+
+      return res.status(status).json({
+        success: false,
+        message: error.message,
+        code:
+          error.code ||
+          "SHUFFLE_TEAM_PLAYERS_FAILED",
+      });
+    }
+  }
+);
+
 router.get("/:teamId", async (req, res) => {
   try {
     const team = await teamService.getTeamById(
