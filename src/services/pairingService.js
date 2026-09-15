@@ -208,9 +208,6 @@ function shuffle(array) {
 
 
 async function getAvailableCategories() {
-  console.log(
-    "🔥 GET AVAILABLE CATEGORIES CALLED"
-  );
 
   const players =
     await prisma.player.findMany({
@@ -262,11 +259,6 @@ async function getAvailableCategories() {
           a.name.localeCompare(b.name)
       );
 
-  console.log(
-    "🔥 AVAILABLE CATEGORIES:",
-    categories
-  );
-
   return {
     categories,
   };
@@ -280,10 +272,6 @@ async function getAvailableCategories() {
 async function getPairingPlayers(category) {
   const cleanCategory =
     validateCategory(category);
-
-  console.log(
-    `🔥 GET PAIRING PLAYERS: ${cleanCategory}`
-  );
 
   const players =
     await prisma.player.findMany({
@@ -315,21 +303,6 @@ async function getPairingPlayers(category) {
         );
       }
     );
-
-  console.log(
-    `🔥 PLAYERS IN ${cleanCategory}:`,
-    matchingPlayers.map(
-      (player) => ({
-        id: player.id,
-        fullName:
-          player.fullName,
-        username:
-          player.username,
-        category:
-          player.category,
-      })
-    )
-  );
 
   if (
     matchingPlayers.length < 2
@@ -629,40 +602,6 @@ async function generatePairings({
       maximumRounds,
     });
 
-  console.log(
-    "🔥 GENERATING AND SAVING PAIRINGS"
-  );
-
-  console.log(
-    "Category:",
-    cleanCategory
-  );
-
-  console.log(
-    "Mode:",
-    cleanMode
-  );
-
-  console.log(
-    "Players:",
-    players.length
-  );
-
-  console.log(
-    "Rounds:",
-    totalRounds
-  );
-
-  console.log(
-    "Format:",
-    cleanFormat
-  );
-
-  console.log(
-    "Hours per round:",
-    intervalHours
-  );
-
   const generatedRounds = [];
 
   for (
@@ -739,10 +678,6 @@ async function generatePairings({
     );
   }
 
-  console.log(
-    `🔥 TOTAL PAIRINGS TO SAVE: ${allPairings.length}`
-  );
-
   const savedPairings =
     await prisma.$transaction(
       async (tx) => {
@@ -757,10 +692,6 @@ async function generatePairings({
                 cleanMode,
             },
           });
-
-        console.log(
-          `🔥 OLD ${cleanCategory} ${cleanMode} PAIRINGS REMOVED: ${deleted.count}`
-        );
 
         await tx.pairing.createMany({
           data:
@@ -851,10 +782,6 @@ async function generatePairings({
     });
   }
 
-  console.log(
-    `🔥 PAIRINGS SAVED SUCCESSFULLY: ${savedPairings.length}`
-  );
-
   return {
     category:
       cleanCategory,
@@ -925,11 +852,6 @@ async function getPairings({
     where.mode =
       cleanMode;
   }
-
-  console.log(
-    "🔥 GET PAIRINGS:",
-    where
-  );
 
   const pairings =
     await prisma.pairing.findMany({
@@ -1015,11 +937,6 @@ async function deletePairings({
       cleanMode;
   }
 
-  console.log(
-    "🔥 DELETE PAIRINGS:",
-    where
-  );
-
   const existing =
     await prisma.pairing.count({
       where,
@@ -1033,10 +950,6 @@ async function deletePairings({
       "PAIRINGS_NOT_FOUND"
     );
   }
-
-  // ----------------------------------------------------
-  // DELETE
-  // ----------------------------------------------------
 
   const deleted =
     await prisma.pairing.deleteMany({
@@ -1351,38 +1264,6 @@ async function generateTeamPairings({
     );
   }
 
-
-  console.log(
-    "🔥 GENERATING TEAM PAIRINGS"
-  );
-
-  console.log(
-    "Team A:",
-    teamA.name,
-    cleanTeamAId
-  );
-
-  console.log(
-    "Team B:",
-    teamB.name,
-    cleanTeamBId
-  );
-
-  console.log(
-    "Mode:",
-    cleanMode
-  );
-
-  console.log(
-    "Rounds:",
-    totalRounds
-  );
-
-  console.log(
-    "Boards:",
-    boardCount
-  );
-
   const saved =
     await prisma.$transaction(
       async (tx) => {
@@ -1512,12 +1393,6 @@ async function generateTeamPairings({
       }
     );
 
-
-  console.log(
-    `🔥 TEAM PAIRINGS SAVED: ${saved.length}`
-  );
-
-
   return {
     teamA: {
       id:
@@ -1575,11 +1450,6 @@ async function generateBoardPairings({
     );
   }
 
-
-  // ----------------------------------------------------
-  // GET TEAM PAIRING
-  // ----------------------------------------------------
-
   const teamPairing =
     await prisma.teamPairing.findUnique({
 
@@ -1633,26 +1503,6 @@ async function generateBoardPairings({
       "NOT_ENOUGH_PLAYERS"
     );
   }
-
-
-  console.log(
-    "🔥 GENERATING BOARD-TO-BOARD PAIRINGS"
-  );
-
-  console.log(
-    "Team Pairing:",
-    teamPairing.id
-  );
-
-  console.log(
-    "Boards:",
-    boardCount
-  );
-
-  console.log(
-    "Mode:",
-    teamPairing.mode
-  );
 
   const saved =
     await prisma.$transaction(
@@ -1729,12 +1579,6 @@ async function generateBoardPairings({
 
       }
     );
-
-
-  console.log(
-    `🔥 BOARD PAIRINGS SAVED: ${saved.length}`
-  );
-
 
   return {
     teamPairingId:
@@ -1838,13 +1682,6 @@ async function getTeamPairings({
       );
 
   }
-
-
-  console.log(
-    "🔥 GET TEAM PAIRINGS:",
-    where
-  );
-
 
   const pairings =
     await prisma.teamPairing.findMany({
@@ -1980,12 +1817,6 @@ async function deleteTeamPairings({
 
   }
 
-
-  console.log(
-    "🔥 DELETE TEAM PAIRINGS:",
-    where
-  );
-
   const existing =
     await prisma.teamPairing.findMany({
 
@@ -2045,12 +1876,6 @@ async function deleteTeamPairings({
 
       }
     );
-
-
-  console.log(
-    `🔥 TEAM PAIRINGS DELETED: ${deleted.count}`
-  );
-
 
   return {
     teamId:

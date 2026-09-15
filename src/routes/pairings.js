@@ -13,9 +13,6 @@ router.get(
   "/categories",
   async (req, res) => {
     try {
-      console.log(
-        "🔥 GET /pairings/categories"
-      );
 
       const result =
         await pairingService.getAvailableCategories();
@@ -57,13 +54,6 @@ router.get(
       const {
         category,
       } = req.query;
-
-      console.log(
-        "🔥 GET /pairings/players:",
-        {
-          category,
-        }
-      );
 
       const players =
         await pairingService.getPairingPlayers(
@@ -130,18 +120,6 @@ router.post(
         format,
         mode,
       } = req.body;
-
-      console.log(
-        "🔥 POST /pairings/generate:",
-        {
-          category,
-          rounds,
-          hoursPerRound,
-          availableAt,
-          format,
-          mode,
-        }
-      );
 
       const result =
         await pairingService.generatePairings({
@@ -215,15 +193,6 @@ router.get(
         mode,
       } = req.query;
 
-      console.log(
-        "🔥 GET /pairings:",
-        {
-          round,
-          category,
-          mode,
-        }
-      );
-
       const result =
         await pairingService.getPairings({
           round,
@@ -282,15 +251,6 @@ router.delete(
         category,
         mode,
       } = req.query;
-
-      console.log(
-        "🔥 DELETE /pairings:",
-        {
-          round,
-          category,
-          mode,
-        }
-      );
 
       const result =
         await pairingService.deletePairings({
@@ -358,20 +318,6 @@ router.post(
         availableAt,
         mode,
       } = req.body;
-
-
-      console.log(
-        "🔥 POST /pairings/team/generate:",
-        {
-          teamAId,
-          teamBId,
-          rounds,
-          hoursPerRound,
-          availableAt,
-          mode,
-        }
-      );
-
 
       const result =
         await pairingService.generateTeamPairings({
@@ -477,15 +423,6 @@ router.post(
         teamPairingId,
       } = req.body;
 
-
-      console.log(
-        "🔥 POST /pairings/team/board/generate:",
-        {
-          teamPairingId,
-        }
-      );
-
-
       const result =
         await pairingService.generateBoardPairings({
 
@@ -563,17 +500,6 @@ router.get(
         round,
         mode,
       } = req.query;
-
-
-      console.log(
-        "🔥 GET /pairings/team:",
-        {
-          teamId,
-          round,
-          mode,
-        }
-      );
-
 
       const result =
         await pairingService.getTeamPairings({
@@ -657,17 +583,6 @@ router.delete(
         round,
         mode,
       } = req.query;
-
-
-      console.log(
-        "🔥 DELETE /pairings/team:",
-        {
-          teamId,
-          round,
-          mode,
-        }
-      );
-
 
       const result =
         await pairingService.deleteTeamPairings({

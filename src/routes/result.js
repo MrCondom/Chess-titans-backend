@@ -405,9 +405,6 @@ router.get(
   "/pairings",
   async (req, res) => {
     try {
-      console.log(
-        "🔥 GET /results/pairings"
-      );
 
       const pairings =
         await resultService.getResultPairings();

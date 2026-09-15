@@ -14,8 +14,6 @@ async function createApprovalRequest({
     throw new Error("Approval data must be an object");
   }
 
-  // Prevent multiple pending requests of the same type
-  // for the same player.
   if (playerId) {
     const existingRequest = await prisma.approvalRequest.findFirst({
       where: {
@@ -464,19 +462,12 @@ async function approveRegistration(tx, playerId, data) {
     throw error;
   }
 
-  // The username already belongs to this player,
-  // so there is no need to take it from approval data.
   return tx.player.update({
     where: {
       id: playerId,
     },
 
     data: {
-      // Existing administrator-created information
-      // remains unchanged:
-      // fullName
-      // username
-      // category
 
       bio:
         typeof bio === "string"
@@ -834,10 +825,6 @@ async function editApprovalRequest(
     throw error;
   }
 
-  /*
-   * Only allow fields that are appropriate
-   * for the approval type.
-   */
 
   let updatedData = {
     ...currentData,

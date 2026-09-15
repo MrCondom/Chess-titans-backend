@@ -778,10 +778,14 @@ function calculateTeamMatchOutcome(
   let teamBScore = 0;
 
   for (const game of approvedGames) {
+    if (game.result === null) {
+      continue;
+    }
+    
     const result = Number(
       game.result
     );
-
+    
     if (
       !Number.isFinite(result)
     ) {

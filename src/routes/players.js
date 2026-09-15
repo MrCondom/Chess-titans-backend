@@ -97,13 +97,6 @@ router.get("/me", playerAuth, async (req, res) => {
       });
     }
 
-    console.log(
-      "PLAYER /ME:",
-      player.username,
-      "STATUS:",
-      player.status
-    );
-
     return res.status(200).json({
       success: true,
       player,
