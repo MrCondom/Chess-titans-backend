@@ -796,7 +796,7 @@ async function getAllResults(options = {}) {
     }),
   ]);
 
- 
+
   const formattedGameResults =
     gameResults.map((gameResult) => ({
       id: gameResult.id,
@@ -1210,11 +1210,9 @@ async function rejectResult(
           approvedAt:
             null,
 
-          whiteRatingChange:
-            null,
+          whiteRatingChange: 0,
 
-          blackRatingChange:
-            null,
+          blackRatingChange: 0,
         },
       });
     }
@@ -1530,7 +1528,7 @@ async function recalculateEditedResultGains(
             });
         }
 
-        
+
         const updatedResult =
           await tx.gameResult.update({
             where: {
@@ -1823,7 +1821,7 @@ async function recalculateEditedResultGains(
             },
           });
       }
-      
+
       const updatedTeamGame =
         await tx.teamGame.findUnique({
           where: {

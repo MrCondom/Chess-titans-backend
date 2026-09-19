@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:../dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 enum PlayerStatus {
@@ -273,7 +273,7 @@ model TeamGame {
   whitePlayerId Int
   blackPlayerId Int
 
-  result Float
+  result Float?
 
   approvalStatus    ApprovalStatus @default(PENDING)
   approvedByAdminId Int?
@@ -314,8 +314,8 @@ model GameResult {
   whiteScore Float
   blackScore Float
 
-  whiteRatingChange Int @default(0)
-  blackRatingChange Int @default(0)
+  whiteRatingChange Int?
+  blackRatingChange Int?
 
   submittedByPlayerId Int?
 
