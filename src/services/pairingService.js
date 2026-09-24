@@ -348,7 +348,7 @@ function resolveRounds({
     );
 
   if (rounds === null) {
-    return 1;
+    return maximumRounds;
   }
 
   if (
@@ -364,77 +364,275 @@ function resolveRounds({
 }
 
 
+function buildCompleteRoundRobinSchedule(players) {
+  if (!Array.isArray(players) || players.length < 2) {
+    return [];
+  }
+
+  /*
+   * TRUE SINGLE ROUND ROBIN
+   *
+   * Every player plays every other player exactly once.
+   *
+   * Even number of players:
+   *   N players = N - 1 rounds
+   *
+   * Odd number of players:
+   *   N players = N rounds
+   *   One player receives a bye each round.
+   *
+   * Example:
+   *
+   * A B C D E
+   *
+   * becomes:
+   *
+   * A B C D E BYE
+   *
+   * The BYE is treated as a dummy player.
+   */
+
+  const orderedPlayers = [...players];
+
+  if (orderedPlayers.length % 2 !== 0) {
+    orderedPlayers.push(null);
+  }
+
+  const playerCount = orderedPlayers.length;
+  const totalRounds = playerCount - 1;
+  const gamesPerRound = playerCount / 2;
+
+  /*
+   * We use the circle method.
+   *
+   * Position 0 remains fixed.
+   * All other positions rotate.
+   *
+   * This guarantees that every possible pair
+   * appears exactly once.
+   */
+
+  const schedule = [];
+
+  let current = [...orderedPlayers];
+
+  for (
+    let round = 1;
+    round <= totalRounds;
+    round++
+  ) {
+    const pairings = [];
+
+    /*
+     * Pair the first player with the last,
+     * second with second-last, etc.
+     */
+    for (
+      let i = 0;
+      i < gamesPerRound;
+      i++
+    ) {
+      const playerA = current[i];
+
+      const playerB =
+        current[playerCount - 1 - i];
+
+      /*
+       * One side can be the BYE.
+       * That player simply doesn't get a game.
+       */
+      if (!playerA || !playerB) {
+        continue;
+      }
+
+      pairings.push({
+        whitePlayerId: playerA.id,
+        blackPlayerId: playerB.id,
+      });
+    }
+
+    schedule.push({
+      round,
+      pairings,
+    });
+
+    const fixed = current[0];
+
+    const rotating = current.slice(1);
+
+    rotating.unshift(
+      rotating.pop()
+    );
+
+    current = [
+      fixed,
+      ...rotating,
+    ];
+  }
+
+  return schedule;
+}
+
+
 function getRoundRobinPairings(
   players,
   round
 ) {
-  let ordered = [
-    ...players,
-  ];
+  const schedule =
+    buildCompleteRoundRobinSchedule(
+      players
+    );
 
   if (
-    ordered.length % 2 !== 0
+    round < 1 ||
+    round > schedule.length
   ) {
-    ordered.push(null);
+    throw createError(
+      `Round ${round} is outside the valid round-robin range of 1-${schedule.length}.`,
+      "INVALID_ROUND_ROBIN_ROUND"
+    );
   }
 
-  const fixed =
-    ordered[0];
+  return schedule[round - 1].pairings;
+}
 
-  let rotating =
-    ordered.slice(1);
+
+function validateCompleteRoundRobin(
+  players,
+  generatedRounds
+) {
+  const expectedGames =
+    (
+      players.length *
+      (players.length - 1)
+    ) / 2;
+
+  const playedPairs =
+    new Set();
+
+  const playerIds =
+    new Set(
+      players.map(
+        (player) => player.id
+      )
+    );
 
   for (
-    let currentRound = 1;
-    currentRound < round;
-    currentRound++
+    const round of generatedRounds
   ) {
-    rotating = [
-      rotating[
-        rotating.length - 1
-      ],
-      ...rotating.slice(
-        0,
-        rotating.length - 1
-      ),
-    ];
+    const playersInRound =
+      new Set();
+
+    for (
+      const pairing of round.pairings
+    ) {
+      const white =
+        pairing.whitePlayerId;
+
+      const black =
+        pairing.blackPlayerId;
+
+      if (
+        !playerIds.has(white) ||
+        !playerIds.has(black)
+      ) {
+        throw createError(
+          `Invalid player found in Round ${round.round}.`,
+          "INVALID_ROUND_ROBIN_PLAYER"
+        );
+      }
+      
+      if (
+        playersInRound.has(white)
+      ) {
+        throw createError(
+          `Player ${white} appears more than once in Round ${round.round}.`,
+          "PLAYER_REPEATED_IN_ROUND"
+        );
+      }
+
+      if (
+        playersInRound.has(black)
+      ) {
+        throw createError(
+          `Player ${black} appears more than once in Round ${round.round}.`,
+          "PLAYER_REPEATED_IN_ROUND"
+        );
+      }
+
+      playersInRound.add(white);
+      playersInRound.add(black);
+
+      /*
+       * Treat A-B and B-A as the SAME pairing.
+       */
+      const pairKey =
+        [white, black]
+          .sort(
+            (a, b) => a - b
+          )
+          .join(":");
+
+    
+      if (
+        playedPairs.has(pairKey)
+      ) {
+        throw createError(
+          `Duplicate round-robin pairing detected: players ${white} and ${black} have already played.`,
+          "DUPLICATE_ROUND_ROBIN_PAIR"
+        );
+      }
+
+      playedPairs.add(pairKey);
+    }
   }
 
-  const finalOrder = [
-    fixed,
-    ...rotating,
-  ];
 
-  const pairings = [];
+  if (
+    playedPairs.size !== expectedGames
+  ) {
+    throw createError(
+      `Invalid round-robin schedule. Expected ${expectedGames} unique games, but generated ${playedPairs.size}.`,
+      "INCOMPLETE_ROUND_ROBIN"
+    );
+  }
+
 
   for (
     let i = 0;
-    i < finalOrder.length;
-    i += 2
+    i < players.length;
+    i++
   ) {
-    const playerA =
-      finalOrder[i];
-
-    const playerB =
-      finalOrder[i + 1];
-
-    if (
-      !playerA ||
-      !playerB
+    for (
+      let j = i + 1;
+      j < players.length;
+      j++
     ) {
-      continue;
+      const playerA =
+        players[i].id;
+
+      const playerB =
+        players[j].id;
+
+      const pairKey =
+        [playerA, playerB]
+          .sort(
+            (a, b) => a - b
+          )
+          .join(":");
+
+      if (
+        !playedPairs.has(pairKey)
+      ) {
+        throw createError(
+          `Missing round-robin pairing between players ${playerA} and ${playerB}.`,
+          "MISSING_ROUND_ROBIN_PAIR"
+        );
+      }
     }
-
-    pairings.push({
-      whitePlayerId:
-        playerA.id,
-
-      blackPlayerId:
-        playerB.id,
-    });
   }
 
-  return pairings;
+  return true;
 }
 
 function getSwissPairings(
@@ -661,6 +859,16 @@ async function generatePairings({
       pairings:
         roundPairings,
     });
+  }
+
+  if (
+    cleanFormat === FORMATS.ROUND_ROBIN
+  ) {
+   
+    validateCompleteRoundRobin(
+      players,
+      generatedRounds
+    );
   }
 
   const allPairings =
