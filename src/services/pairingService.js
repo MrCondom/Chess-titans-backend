@@ -541,7 +541,7 @@ function validateCompleteRoundRobin(
           "INVALID_ROUND_ROBIN_PLAYER"
         );
       }
-      
+
       if (
         playersInRound.has(white)
       ) {
@@ -573,7 +573,7 @@ function validateCompleteRoundRobin(
           )
           .join(":");
 
-    
+
       if (
         playedPairs.has(pairKey)
       ) {
@@ -864,7 +864,7 @@ async function generatePairings({
   if (
     cleanFormat === FORMATS.ROUND_ROBIN
   ) {
-   
+
     validateCompleteRoundRobin(
       players,
       generatedRounds
@@ -1018,7 +1018,7 @@ async function generatePairings({
 
 
 // ======================================================
-// GET PAIRINGS
+// GET ACTIVE / REQUESTED PAIRINGS
 // ======================================================
 
 async function getPairings({
@@ -1028,25 +1028,23 @@ async function getPairings({
 }) {
   const where = {};
 
+  // ----------------------------------------------------
+  // Optional specific round
+  // ----------------------------------------------------
+
   if (
     round !== undefined &&
     round !== null &&
     round !== ""
   ) {
-    where.round =
-      validateRound(
-        round
-      );
+    where.round = validateRound(round);
   }
 
   const cleanCategory =
-    validateOptionalCategory(
-      category
-    );
+    validateOptionalCategory(category);
 
   if (cleanCategory) {
-    where.category =
-      cleanCategory;
+    where.category = cleanCategory;
   }
 
   const cleanMode =
@@ -1057,11 +1055,48 @@ async function getPairings({
       : null;
 
   if (cleanMode) {
-    where.mode =
-      cleanMode;
+    where.mode = cleanMode;
   }
 
-  const pairings =
+  if (
+    round !== undefined &&
+    round !== null &&
+    round !== ""
+  ) {
+    const pairings =
+      await prisma.pairing.findMany({
+        where,
+
+        include: {
+          whitePlayer: true,
+          blackPlayer: true,
+        },
+
+        orderBy: [
+          {
+            round: "asc",
+          },
+
+          {
+            id: "asc",
+          },
+        ],
+      });
+
+    return {
+      round: validateRound(round),
+
+      category: cleanCategory,
+
+      mode: cleanMode,
+
+      count: pairings.length,
+
+      pairings,
+    };
+  }
+
+  const allPairings =
     await prisma.pairing.findMany({
       where,
 
@@ -1072,31 +1107,102 @@ async function getPairings({
 
       orderBy: [
         {
-          round:
-            "asc",
+          availableAt: "asc",
         },
 
         {
-          id:
-            "asc",
+          round: "asc",
+        },
+
+        {
+          id: "asc",
         },
       ],
     });
 
+  if (allPairings.length === 0) {
+    return {
+      round: null,
+
+      category: cleanCategory,
+
+      mode: cleanMode,
+
+      count: 0,
+
+      pairings: [],
+    };
+  }
+
+  const now = new Date();
+
+  // ----------------------------------------------------
+  // Find the latest round whose availableAt has arrived.
+  // ----------------------------------------------------
+
+  const activeCandidates =
+    allPairings.filter(
+      (pairing) =>
+        pairing.availableAt &&
+        new Date(pairing.availableAt) <= now
+    );
+
+  // No round has started yet.
+  if (activeCandidates.length === 0) {
+    return {
+      round: null,
+
+      category: cleanCategory,
+
+      mode: cleanMode,
+
+      count: 0,
+
+      pairings: [],
+    };
+  }
+
+  // ----------------------------------------------------
+  // Get the latest available round.
+  // ----------------------------------------------------
+
+  const activeRound =
+    Math.max(
+      ...activeCandidates.map(
+        (pairing) => pairing.round
+      )
+    );
+
+  // ----------------------------------------------------
+  // Return ONLY the active round.
+  // ----------------------------------------------------
+
+  const activePairings =
+    allPairings.filter(
+      (pairing) =>
+        pairing.round === activeRound
+    );
+
+  const activeCategory =
+    cleanCategory ||
+    activePairings[0]?.category ||
+    null;
+
+  const activeMode =
+    cleanMode ||
+    activePairings[0]?.mode ||
+    null;
+
   return {
-    round:
-      round ?? null,
+    round: activeRound,
 
-    category:
-      cleanCategory,
+    category: activeCategory,
 
-    mode:
-      cleanMode,
+    mode: activeMode,
 
-    count:
-      pairings.length,
+    count: activePairings.length,
 
-    pairings,
+    pairings: activePairings,
   };
 }
 
@@ -1715,7 +1821,7 @@ async function generateBoardPairings({
   const saved =
     await prisma.$transaction(
       async (tx) => {
-  
+
         await tx.teamGame.deleteMany({
           where: {
             teamPairingId: id,
@@ -1827,7 +1933,7 @@ async function generateBoardPairings({
 
 
 // ======================================================
-// GET TEAM PAIRINGS
+// GET ACTIVE / REQUESTED TEAM PAIRINGS
 // ======================================================
 
 async function getTeamPairings({
@@ -1850,21 +1956,17 @@ async function getTeamPairings({
         "Team ID"
       );
 
-
     where.OR = [
       {
-        teamAId:
-          cleanTeamId,
+        teamAId: cleanTeamId,
       },
-
       {
-        teamBId:
-          cleanTeamId,
+        teamBId: cleanTeamId,
       },
     ];
-
   }
 
+  
   if (
     round !== undefined &&
     round !== null &&
@@ -1872,11 +1974,12 @@ async function getTeamPairings({
   ) {
 
     where.round =
-      validateRound(
-        round
-      );
-
+      validateRound(round);
   }
+
+  // ----------------------------------------------------
+  // Optional mode
+  // ----------------------------------------------------
 
   if (
     mode !== undefined &&
@@ -1885,13 +1988,77 @@ async function getTeamPairings({
   ) {
 
     where.mode =
-      validateRequiredTeamMode(
-        mode
-      );
-
+      validateRequiredTeamMode(mode);
   }
 
-  const pairings =
+  if (
+    round !== undefined &&
+    round !== null &&
+    round !== ""
+  ) {
+
+    const pairings =
+      await prisma.teamPairing.findMany({
+
+        where,
+
+        include: {
+
+          teamA: true,
+
+          teamB: true,
+
+          games: {
+
+            include: {
+
+              whitePlayer: true,
+
+              blackPlayer: true,
+
+            },
+
+            orderBy: {
+              boardPosition: "asc",
+            },
+
+          },
+
+        },
+
+        orderBy: [
+
+          {
+            round: "asc",
+          },
+
+          {
+            id: "asc",
+          },
+
+        ],
+
+      });
+
+    return {
+      teamId: teamId ?? null,
+
+      round: validateRound(round),
+
+      mode:
+        mode
+          ? String(mode)
+              .trim()
+              .toUpperCase()
+          : null,
+
+      count: pairings.length,
+
+      pairings,
+    };
+  }
+
+  const allPairings =
     await prisma.teamPairing.findMany({
 
       where,
@@ -1913,8 +2080,7 @@ async function getTeamPairings({
           },
 
           orderBy: {
-            boardPosition:
-              "asc",
+            boardPosition: "asc",
           },
 
         },
@@ -1924,41 +2090,108 @@ async function getTeamPairings({
       orderBy: [
 
         {
-          round:
-            "asc",
+          availableAt: "asc",
         },
 
         {
-          id:
-            "asc",
+          round: "asc",
+        },
+
+        {
+          id: "asc",
         },
 
       ],
 
     });
 
+  if (allPairings.length === 0) {
+
+    return {
+      teamId: teamId ?? null,
+
+      round: null,
+
+      mode:
+        mode
+          ? String(mode)
+              .trim()
+              .toUpperCase()
+          : null,
+
+      count: 0,
+
+      pairings: [],
+    };
+  }
+
+  const now = new Date();
+
+  const activeCandidates =
+    allPairings.filter(
+      (pairing) =>
+        pairing.availableAt &&
+        new Date(pairing.availableAt) <= now
+    );
+
+  if (activeCandidates.length === 0) {
+
+    return {
+      teamId: teamId ?? null,
+
+      round: null,
+
+      mode:
+        mode
+          ? String(mode)
+              .trim()
+              .toUpperCase()
+          : null,
+
+      count: 0,
+
+      pairings: [],
+    };
+  }
+
+  // ----------------------------------------------------
+  // Latest started round.
+  // ----------------------------------------------------
+
+  const activeRound =
+    Math.max(
+      ...activeCandidates.map(
+        (pairing) => pairing.round
+      )
+    );
+
+  // ----------------------------------------------------
+  // Return ONLY the active round.
+  // ----------------------------------------------------
+
+  const activePairings =
+    allPairings.filter(
+      (pairing) =>
+        pairing.round === activeRound
+    );
 
   return {
-    teamId:
-      teamId ?? null,
+    teamId: teamId ?? null,
 
-    round:
-      round ?? null,
+    round: activeRound,
 
     mode:
       mode
         ? String(mode)
             .trim()
             .toUpperCase()
-        : null,
+        : activePairings[0]?.mode || null,
 
-    count:
-      pairings.length,
+    count: activePairings.length,
 
-    pairings,
+    pairings: activePairings,
   };
 }
-
 
 // ======================================================
 // DELETE TEAM PAIRINGS
